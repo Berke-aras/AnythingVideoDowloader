@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="tr" data-bs-theme="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>VideoMania - Ultimate Video Downloader</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --primary-gradient: linear-gradient(
+                    135deg,
+                    #6366f1 0%,
+                    #a855f7 100%
+                );
+                --glass-bg-light: rgba(255, 255, 255, 0.95);
+                --glass-bg-dark: rgba(30, 30, 30, 0.95);
+                --nav-blur: blur(10px);
+            }
+
+            body {
+                background: var(--primary-gradient);
+                min-height: 100vh;
+                transition: background 0.3s ease;
+            }
+
+            .nav-blur {
+                background: var(--primary-gradient);
+                backdrop-filter: var(--nav-blur);
+                box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            }
+
+            .dark-mode .nav-blur {
+                background: rgba(0, 0, 0, 0.75) !important;
+            }
+
+            .hero-card {
+                background: var(--glass-bg-light);
+                backdrop-filter: blur(12px);
+                border-radius: 1.5rem;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .dark-mode .hero-card {
+                background: var(--glass-bg-dark);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .input-glass {
+                background: rgba(255, 255, 255, 0.15) !important;
+                border: 1px solid rgba(0, 0, 0, 0.575) !important;
+                color: inherit !important;
+                transition: all 0.3s ease;
+            }
+
+            .input-glass::placeholder {
+                color: rgba(138, 138, 138, 0.7) !important;
+            }
+
+            .dark-mode .input-glass {
+                background: rgba(0, 0, 0, 0.15) !important;
+                border-color: rgba(255, 255, 255, 0.1) !important;
+            }
+
+            .btn-glow {
+                position: relative;
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .btn-glow:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark nav-blur py-3">
+            <div class="container">
+                <a
+                    class="navbar-brand fw-bold d-flex align-items-center"
+                    href="{{ url_for('index') }}"
+                >
+                    <i class="bi bi-download me-2 fs-4"></i>
+                    <span class="gradient-text">VideoMania</span>
+                </a>
+                <div class="form-check form-switch ms-auto">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="themeSwitch"
+                        role="switch"
+                    />
+                    <label class="form-check-label" for="themeSwitch">
+                        <i class="bi bi-moon-stars fs-5"></i>
+                    </label>
+                </div>
+            </div>
+        </nav>
+
+        <main class="container my-5">
+            <div class="hero-card p-5 text-center">
+                <div class="mb-5">
+                    <h1 class="display-5 fw-bold mb-4">
+                        <i class="bi bi-cloud-arrow-down-fill me-2"></i>
+                        Video İndirici
+                    </h1>
+                    <p class="lead text-muted mb-4">
+                        YouTube, Instagram ve X (Twitter) videolarını kolayca
+                        indirin
+                    </p>
+                </div>
+
+                <form
+                    action="{{ url_for('get_info') }}"
+                    method="post"
+                    class="mx-auto"
+                    style="max-width: 800px"
+                >
+                    <div class="input-group">
+                        <input
+                            type="url"
+                            class="form-control form-control-lg input-glass py-3"
+                            name="video_url"
+                            placeholder="Video linkini buraya yapıştırın..."
+                            required
+                        />
+                        <button
+                            type="submit"
+                            class="btn btn-lg btn-primary btn-glow px-4"
+                            style="min-width: 150px"
+                        >
+                            <i class="bi bi-magic me-2"></i>Analiz Et
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-4 text-muted">
+                    <small>
+                        <i class="bi bi-info-circle me-1"></i>
+                        Desteklenen platformlar: YouTube, Instagram
+                        Reels/Stories, X (Twitter), TikTok
+                    </small>
+                    <br />
+                    <small>
+                        <i>
+                            Bu uygulama, yalnızca kullanıcıların kendi
+                            içeriklerini veya indirilmesine izin verilen
+                            içerikleri indirmeleri için tasarlanmıştır. Telif
+                            hakkı ihlali yapmayın.
+                        </i>
+                    </small>
+                </div>
+            </div>
+            <div class="legal-notice">
+                <p></p>
+            </div>
+        </main>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Gelişmiş Tema Yönetimi
+            const themeSwitch = document.getElementById("themeSwitch");
+            const updateTheme = (isDark) => {
+                document.body.classList.toggle("dark-mode", isDark);
+                document.documentElement.setAttribute(
+                    "data-bs-theme",
+                    isDark ? "dark" : "light"
+                );
+            };
+
+            // Tema Değişim Olayı
+            themeSwitch.addEventListener("change", () => {
+                const isDark = themeSwitch.checked;
+                localStorage.setItem(
+                    "darkMode",
+                    isDark ? "enabled" : "disabled"
+                );
+                updateTheme(isDark);
+            });
+
+            // Sayfa Yüklendiğinde Tema Kontrolü
+            document.addEventListener("DOMContentLoaded", () => {
+                const savedTheme =
+                    localStorage.getItem("darkMode") === "enabled";
+                themeSwitch.checked = savedTheme;
+                updateTheme(savedTheme);
+            });
+        </script>
+    </body>
+</html>

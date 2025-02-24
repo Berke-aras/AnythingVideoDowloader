@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="tr" data-bs-theme="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>İndirme İlerlemesi</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --gradient-primary: linear-gradient(
+                    135deg,
+                    #6366f1 0%,
+                    #a855f7 100%
+                );
+                --glass-bg-light: rgba(255, 255, 255, 0.95);
+                --glass-bg-dark: rgba(30, 30, 30, 0.95);
+                --progress-height: 25px;
+            }
+
+            body {
+                background: var(--gradient-primary);
+                min-height: 100vh;
+                transition: background 0.3s ease;
+            }
+
+            .nav-blur {
+                background: var(--primary-gradient);
+                backdrop-filter: blur(10px);
+                box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            }
+
+            .dark-mode .nav-blur {
+                background: rgba(0, 0, 0, 0.75) !important;
+            }
+
+            .progress-container {
+                position: relative;
+                margin: 2rem 0;
+                border-radius: 50px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            .progress-label {
+                position: absolute;
+                width: 100%;
+                text-align: center;
+                font-weight: 600;
+                top: 50%;
+                transform: translateY(-50%);
+                color: white;
+                z-index: 2;
+                font-size: 0.9rem;
+            }
+
+            .glass-card {
+                background: var(--glass-bg-light);
+                backdrop-filter: blur(12px);
+                border-radius: 1.5rem;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                padding: 2rem;
+                margin-top: 2rem;
+                border: none;
+            }
+
+            .dark-mode .glass-card {
+                background: var(--glass-bg-dark);
+            }
+
+            .download-btn {
+                transition: all 0.3s ease;
+                padding: 1rem 2rem;
+                border-radius: 50px;
+                font-weight: 600;
+                box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            }
+
+            .download-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark nav-blur">
+            <div class="container">
+                <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+                    <i class="bi bi-download me-2"></i>VideoMania
+                </a>
+                <div class="form-check form-switch ms-auto">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="themeSwitch"
+                    />
+                    <label class="form-check-label" for="themeSwitch">
+                        <i class="bi bi-moon-stars"></i>
+                    </label>
+                </div>
+            </div>
+        </nav>
+
+        <main class="container my-5">
+            <div class="glass-card text-center">
+                <div class="mb-4">
+                    <i
+                        class="bi bi-cloud-arrow-down-fill h1 text-primary mb-3"
+                    ></i>
+                    <h2 class="fw-bold mb-3">İndirme İlerlemesi</h2>
+                    <p class="text-muted mb-0" id="statusText">
+                        İndirme başlatılıyor...
+                    </p>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-label" id="progressText">0%</div>
+                    <div
+                        class="progress"
+                        style="height: var(--progress-height)"
+                    >
+                        <div
+                            id="progressBar"
+                            class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar"
+                            style="width: 0%"
+                        ></div>
+                    </div>
+                </div>
+
+                <div
+                    id="successAlert"
+                    class="alert alert-success d-none align-items-center"
+                    role="alert"
+                >
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <div>İndirme başarıyla tamamlandı!</div>
+                </div>
+
+                <div
+                    id="errorAlert"
+                    class="alert alert-danger d-none align-items-center"
+                    role="alert"
+                >
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div id="errorMessage">Hata oluştu!</div>
+                </div>
+
+                <a
+                    id="downloadButton"
+                    href="#"
+                    class="btn btn-primary download-btn d-none"
+                >
+                    <i class="bi bi-download me-2"></i>Dosyayı İndir
+                </a>
+            </div>
+        </main>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Tema Yönetimi
+            const themeSwitch = document.getElementById("themeSwitch");
+            const setTheme = (isDark) => {
+                document.body.classList.toggle("dark-mode", isDark);
+                document.documentElement.setAttribute(
+                    "data-bs-theme",
+                    isDark ? "dark" : "light"
+                );
+            };
+
+            themeSwitch.addEventListener("change", () => {
+                localStorage.setItem(
+                    "darkMode",
+                    themeSwitch.checked ? "enabled" : "disabled"
+                );
+                setTheme(themeSwitch.checked);
+            });
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const isDark = localStorage.getItem("darkMode") === "enabled";
+                themeSwitch.checked = isDark;
+                setTheme(isDark);
+            });
+
+            // İnderme Takip Sistemi
+            const taskId = "{{ task_id }}";
+            const elements = {
+                progressBar: document.getElementById("progressBar"),
+                progressText: document.getElementById("progressText"),
+                statusText: document.getElementById("statusText"),
+                downloadButton: document.getElementById("downloadButton"),
+                successAlert: document.getElementById("successAlert"),
+                errorAlert: document.getElementById("errorAlert"),
+                errorMessage: document.getElementById("errorMessage"),
+            };
+
+            const updateUI = (progress, status) => {
+                const progressPercent = Math.floor(progress);
+                elements.progressBar.style.width = `${progressPercent}%`;
+                elements.progressText.textContent = `${progressPercent}%`;
+
+                const statusMessages = {
+                    starting: "İndirme başlatılıyor...",
+                    downloading: `İndiriliyor... (${progressPercent}%)`,
+                    finished: "İndirme tamamlandı!",
+                    error: "Hata oluştu!",
+                };
+
+                elements.statusText.textContent = statusMessages[status];
+            };
+
+            const checkProgress = async () => {
+                try {
+                    const response = await fetch(
+                        `{{ url_for('progress_status') }}?task_id=${taskId}`
+                    );
+                    const data = await response.json();
+
+                    if (data.error) throw new Error(data.error);
+
+                    updateUI(data.progress, data.status);
+
+                    if (data.status === "finished") {
+                        elements.downloadButton.href =
+                            "{{ url_for('get_file', task_id=task_id) }}";
+                        elements.downloadButton.classList.remove("d-none");
+                        elements.successAlert.classList.remove("d-none");
+                        elements.progressBar.classList.remove(
+                            "progress-bar-animated"
+                        );
+                        return;
+                    }
+
+                    if (data.status === "error") throw new Error(data.error);
+
+                    setTimeout(checkProgress, 1000);
+                } catch (error) {
+                    elements.errorAlert.classList.remove("d-none");
+                    elements.errorMessage.textContent = error.message;
+                    elements.progressBar.classList.add("bg-danger");
+                    elements.progressBar.classList.remove(
+                        "progress-bar-animated"
+                    );
+                    updateUI(0, "error");
+                }
+            };
+
+            checkProgress();
+        </script>
+    </body>
+</html>
