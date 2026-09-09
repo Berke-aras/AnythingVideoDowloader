@@ -9,6 +9,7 @@ import {
   fetchText,
   parseM3U8,
   parseMpd,
+  setHelperBase,
   setSiteCookie,
 } from "./engine.js";
 import { conversionArgs, isFFmpegLoaded, loadFFmpeg, mergeArgs, run } from "./ffmpeg.js";
@@ -41,12 +42,46 @@ const els = {
   cpuChip: $("cpuChip"),
   cookie: $("cookieInput"),
   cookieStatus: $("cookieStatus"),
+  helperChip: $("helperChip"),
 };
 
 /** Uygulama durumu. */
 const state = { page: null, candidate: null, plan: null, controller: null };
 
 const AUDIO_FORMATS = new Set(["mp3", "m4a", "wav"]);
+
+/* --------------------------- yerel yardimci ------------------------ */
+
+/**
+ * Kullanicinin makinesinde calisan yardimci, adres cozumunu yt-dlp ile yapar
+ * ve baytlari kendi baglantisindan aktarir. YouTube gibi bulut IP'lerini
+ * engelleyen siteler yalnizca bu yolla guvenilir sekilde calisir.
+ *
+ * Tarayicilar 127.0.0.1'i guvenli kaynak sayar, bu yuzden HTTPS sayfadan
+ * yerel yardimciya istek atmak engellenmez.
+ */
+const HELPER_URL = "http://127.0.0.1:8765";
+
+let helperReady = false;
+
+async function detectHelper() {
+  try {
+    const res = await fetch(`${HELPER_URL}/health`, { signal: AbortSignal.timeout(1500) });
+    if (!res.ok) throw new Error("saglik kontrolu basarisiz");
+    const info = await res.json();
+    if (!info?.ok) throw new Error("beklenmeyen yanit");
+    helperReady = true;
+    setHelperBase(HELPER_URL);
+    els.helperChip.textContent = "Yerel yardimci bagli";
+    els.helperChip.classList.add("chip-on");
+    els.helperChip.title = "Istekler senin baglantindan cikiyor; YouTube dahil her sey calisir.";
+  } catch {
+    helperReady = false;
+    setHelperBase("");
+    els.helperChip.textContent = "Yerel yardimci kapali";
+    els.helperChip.title = "python3 tools/avd-helper.py calistirirsan YouTube da guvenilir sekilde calisir.";
+  }
+}
 
 /* ------------------------------ cerezler --------------------------- */
 
@@ -95,12 +130,11 @@ function safeFileName(name, ext) {
       // Dosya sistemlerinde gecersiz karakterler, kontrol karakterleri ve
       // tarayicilarin indirme adini bozdugu emoji/simge blogu temizlenir.
       .replace(/[\\/:*?"<>|]/g, " ")
-      .replace(/[\u0000-\u001f\u007f]/g, "")
+      .replace(/[\u0000-\u001f\u007f]/g, " ")
       .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "")
       .replace(/\s+/g, " ")
-      .replace(/^[.\s]+|[.\s]+$/g, "")
-      .slice(0, 90)
-      .trim() || "video";
+      .slice(0, 70)
+      .replace(/^[.\s-]+|[.\s-]+$/g, "") || "video";
   return `${base}.${ext}`;
 }
 
@@ -149,11 +183,32 @@ async function resolveUrl(event) {
   state.plan = null;
 
   try {
-    const res = await fetch(`/api/resolve?url=${encodeURIComponent(url)}`, {
-      headers: siteCookieHeader(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Sunucu hatasi (${res.status})`);
+    let data = null;
+
+    // Yardimci calisiyorsa once o denenir: kullanicinin kendi IP'sinden
+    // cozdugu icin bulut engellerine takilmaz.
+    if (helperReady) {
+      try {
+        setStatus("Yerel yardimci ile cozumleniyor...");
+        const res = await fetch(`${HELPER_URL}/resolve?url=${encodeURIComponent(url)}`, {
+          signal: AbortSignal.timeout(45000),
+        });
+        const body = await res.json();
+        if (res.ok && body.candidates?.length) data = body;
+        else if (body.error) log(`Yardimci sonuc veremedi: ${body.error}`);
+      } catch (err) {
+        log(`Yardimciya ulasilamadi: ${err.message}`);
+      }
+    }
+
+    if (!data) {
+      setStatus("Sayfa inceleniyor...");
+      const res = await fetch(`/api/resolve?url=${encodeURIComponent(url)}`, {
+        headers: siteCookieHeader(),
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Sunucu hatasi (${res.status})`);
+    }
     state.page = data;
     renderResult(data);
     setStatus(
@@ -628,6 +683,8 @@ els.form.addEventListener("submit", resolveUrl);
 els.downloadBtn.addEventListener("click", startDownload);
 els.cancelBtn.addEventListener("click", () => state.controller?.abort());
 els.format.addEventListener("change", updateFormatHint);
+
+detectHelper();
 
 els.cookie.value = loadSiteCookie();
 setSiteCookie(els.cookie.value);

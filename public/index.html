@@ -30,6 +30,7 @@
           <span class="chip">Sunucusuz</span>
           <span class="chip">ffmpeg.wasm</span>
           <span class="chip" id="cpuChip">Yerel islemci</span>
+          <span class="chip" id="helperChip">Yerel yardimci araniyor...</span>
         </div>
       </div>
     </header>
@@ -57,6 +58,24 @@
           </p>
         </form>
         <div id="resolveStatus" class="status" hidden></div>
+
+        <details class="advanced">
+          <summary>YouTube guvenilir calissin: yerel yardimci</summary>
+          <p class="hint">
+            YouTube bulut sunucularinin IP adreslerini bot olarak isaretliyor, bu yuzden
+            sunucudan yapilan istekler cogu videoda reddediliyor. <code>yt-dlp</code>'nin bu
+            sorunu yasamamasinin sebebi bir numara degil: senin kendi baglantindan calisiyor
+            olmasi. Ayni seyi burada da yapabilirsin — kucuk bir yardimci calistir, site onu
+            kendisi bulup kullansin:
+          </p>
+          <pre class="cmd">pip install yt-dlp
+python3 tools/avd-helper.py</pre>
+          <p class="hint">
+            Yardimci acikken adres cozumu yt-dlp ile, indirme de senin baglantindan yapilir;
+            birlestirme ve donusturme yine tarayicida calisir. Kapatirsan site sunucudaki
+            cozumleyiciye doner.
+          </p>
+        </details>
 
         <details class="advanced">
           <summary>Gelismis: oturum cerezi (gizli gonderiler ve YouTube bot kontrolu icin)</summary>

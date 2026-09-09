@@ -14,7 +14,17 @@ const SEGMENT_CONCURRENCY = 6;
 const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 4;
 
+// Kullanicinin makinesinde calisan yardimci (varsa). Ayarlandiginda hem
+// cozumleme hem de byte aktarimi oradan yapilir: istekler kullanicinin kendi
+// baglantisindan cikar, sunucunun bant genisligi hic kullanilmaz.
+let helperBase = "";
+
+export function setHelperBase(base) {
+  helperBase = base || "";
+}
+
 export function proxied(url, ref) {
+  if (helperBase) return `${helperBase}/fetch?url=${encodeURIComponent(url)}`;
   const q = new URLSearchParams({ url });
   if (ref) q.set("ref", ref);
   return `/api/proxy?${q}`;

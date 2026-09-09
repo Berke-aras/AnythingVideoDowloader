@@ -81,7 +81,7 @@ düşülür.
 
 | Platform | Durum | Nasıl |
 |---|---|---|
-| **YouTube** | Çalışıyor, IP'ye bağlı (aşağıya bakın) | InnerTube oynatıcı ucu; imza çözümü gerektirmeyen iOS / Android-VR istemci bağlamları. HLS listesi 144p–2160p, ayrı akışlar 4K'ya kadar |
+| **YouTube** | Yerel yardımcıyla çalışıyor; yardımcısız IP'ye bağlı | InnerTube oynatıcı ucu; imza çözümü gerektirmeyen iOS / Android-VR istemci bağlamları. HLS listesi 144p–2160p, ayrı akışlar 4K'ya kadar |
 | **X / Twitter** | Çalışıyor | Herkese açık syndication ucu; HLS + MP4 varyantları |
 | **Vimeo** | Çalışıyor | Oynatıcı yapılandırması (HLS, DASH, doğrudan MP4) |
 | **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
@@ -136,6 +136,52 @@ doğrudan hedef siteye iletir. Yine de bu, hesabına erişim veren bir bilgidir:
 **kendi kurduğun kopyada kullan**, paylaşılan bir dağıtımda kullanma, işin bitince
 temizle.
 
+## YouTube'u güvenilir hâle getirmek: yerel yardımcı
+
+**yt-dlp'nin bir numarası yok.** Aynı konteynerde IP işaretlendiği anda yt-dlp de
+birebir aynı hatayı verdi:
+
+```
+ERROR: [youtube] Sign in to confirm you're not a bot.
+Use --cookies-from-browser or --cookies for the authentication.
+```
+
+Farkı tek şey: yt-dlp normalde **senin kendi bağlantından** çalışır ve ev IP'leri
+işaretli değildir. Bu yüzden en sağlam çözüm, aynı şeyi burada da yapmak:
+
+```sh
+pip install yt-dlp
+python3 tools/avd-helper.py
+```
+
+Yardımcı `127.0.0.1:8765` üzerinde dinler. Siteyi açtığında sayfa onu kendisi bulur
+ve üst köşede **"Yerel yardımcı bağlı"** yazar. O andan itibaren:
+
+| | Yardımcı kapalı | Yardımcı açık |
+|---|---|---|
+| Adres çözümü | Netlify fonksiyonu | Senin makinende `yt-dlp` |
+| Medya baytları | Netlify proxy'si | Doğrudan senin bağlantın |
+| YouTube | IP'ye bağlı, çoğu videoda engel | Çalışır |
+| Netlify bant genişliği | Kullanılır | **Hiç kullanılmaz** |
+| Birleştirme / dönüştürme | Tarayıcı | Tarayıcı (değişmez) |
+
+Yaş sınırı olan ya da gizli içerik için yardımcıya çerezleri tarayıcından
+aldırabilirsin:
+
+```sh
+python3 tools/avd-helper.py --cookies-from-browser chrome
+```
+
+**Güvenlik:** yardımcı yalnızca `127.0.0.1` üzerinde dinler (dışarıdan erişilemez),
+yalnızca izin verilen web adreslerinden gelen isteklere yanıt verir ve özel ağ
+adreslerine istek atmayı reddeder. Tarayıcılar `127.0.0.1`'i güvenli kaynak saydığı
+için HTTPS sayfadan yerel yardımcıya bağlanmak engellenmez.
+
+*Doğrulandı:* yardımcı açıkken bir X gönderisi uçtan uca indirildi — HLS segmentleri
+yerel bağlantıdan çekildi, tarayıcıda birleştirildi, 2,68 MB geçerli MP4 kaydedildi.
+
+---
+
 ### YouTube ve bot kontrolü — ölçülen davranış
 
 YouTube, bulut sağlayıcılarının IP adreslerine sıklıkla *"Sign in to confirm you're
@@ -154,11 +200,23 @@ Yani yöntem doğru çalışıyor ama Netlify'ın paylaşımlı AWS IP'leri ağ�
 durumda. Piped ve Invidious gibi genel YouTube ön yüzleri de aynı engele takıldığı için
 (`YouTube probably temporarily blocked`) onlar da çare değil.
 
-İki çözüm var:
+Engelin **IP seviyesinde** olduğunu doğrulamak için Netlify'da geçici bir teşhis ucu
+yayımladım. Sonuç net — istemci profili hiç fark etmiyor:
 
-1. **Çerez.** Gelişmiş bölümüne YouTube çerezini yapıştır; istek senin hesabın adına
+| Denenen | Sonuç |
+|---|---|
+| iOS, Android-VR, TVHTML5, TV-embedded, WEB-Safari, MWEB (visitorData ile ve olmadan) | Hepsi `LOGIN_REQUIRED` |
+| İzleme sayfası HTML'i (`ytInitialPlayerResponse`) | `LOGIN_REQUIRED` |
+| Netlify Edge Function (Deno, farklı çıkış IP'si) | `LOGIN_REQUIRED` |
+| Tarayıcıdan doğrudan çağrı | `Origin` başlığında `403`, CORS yok |
+| Piped / Invidious genel örnekleri | `403`, `502`, "YouTube probably temporarily blocked" |
+
+Üç çözüm var:
+
+1. **Yerel yardımcı** (yukarıdaki bölüm) — en sağlamı, çerez bile gerekmez.
+2. **Çerez.** Gelişmiş bölümüne YouTube çerezini yapıştır; istek senin hesabın adına
    yapılır ve bot kontrolü devreye girmez.
-2. **Kendi çıkış proxy'n.** Netlify proje ayarlarında bir ortam değişkeni tanımla:
+3. **Kendi çıkış proxy'n.** Netlify proje ayarlarında bir ortam değişkeni tanımla:
 
    | Değişken | Anlamı |
    |---|---|
@@ -211,6 +269,7 @@ netlify/
   functions/proxy.mts       CORS aktarıcı
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
+tools/avd-helper.py         yerel yardımcı (yt-dlp ile çözüm + bayt aktarımı)
 scripts/vendor-ffmpeg.mjs   FFmpeg dosyalarını public/vendor'a kopyalar
 netlify.toml                yapı, fonksiyon ve başlık ayarları
 

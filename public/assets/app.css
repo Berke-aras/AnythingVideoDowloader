@@ -123,6 +123,21 @@ h1 {
   font-size: 0.75rem;
 }
 
+.chip-on {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.cmd {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.82rem;
+  overflow-x: auto;
+}
+
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
