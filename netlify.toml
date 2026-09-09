@@ -1,0 +1,35 @@
+# AnythingVideoDownloader — Netlify yapılandırması
+#
+# Site tamamen statiktir. Sunucuda yalnızca iki hafif fonksiyon çalışır:
+#   /api/resolve : sayfa HTML'ini okuyup medya adaylarını çıkarır (CPU'su ihmal edilebilir)
+#   /api/proxy   : CORS engelini aşmak için byte'ları aktarır (hesaplama yapmaz)
+# İndirme, segment birleştirme, mux ve format dönüşümü tarayıcıda (kullanıcı PC'sinde) yapılır.
+
+[build]
+  command = "npm run build"
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# FFmpeg cekirdegi surumle sabitlenmis ve degismez; uzun sure onbellekte kalsin.
+[[headers]]
+  for = "/vendor/ffmpeg/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

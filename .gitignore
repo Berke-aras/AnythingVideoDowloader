@@ -1,1 +1,10 @@
 /www.instagram.com_cookies.txt
+instagram_cookies.txt
+downloads/
+node_modules/
+.netlify/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+public/vendor/

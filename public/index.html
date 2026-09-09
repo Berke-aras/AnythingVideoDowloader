@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AnythingVideoDownloader — Tarayicida calisan video indirici</title>
+    <meta
+      name="description"
+      content="Herhangi bir sayfadaki video ve sesi bul, indir ve MP4/MP3 olarak kaydet. Tum donusturme islemi kendi bilgisayarinda, tarayicinda calisir."
+    />
+    <link rel="stylesheet" href="/assets/app.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬇️</text></svg>"
+    />
+  </head>
+  <body>
+    <div class="glow" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <div class="wrap">
+        <div class="brand">
+          <span class="brand-mark">▼</span>
+          <div>
+            <h1>AnythingVideoDownloader</h1>
+            <p class="tagline">Baglantiyi yapistir, tarayicin gerisini halletsin.</p>
+          </div>
+        </div>
+        <div class="chips">
+          <span class="chip">Sunucusuz</span>
+          <span class="chip">ffmpeg.wasm</span>
+          <span class="chip" id="cpuChip">Yerel islemci</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="card search-card">
+        <form id="resolveForm" autocomplete="off">
+          <label class="field">
+            <span class="field-label">Sayfa veya dosya adresi</span>
+            <div class="field-row">
+              <input
+                id="urlInput"
+                type="url"
+                required
+                placeholder="https://ornek-site.com/video/12345"
+                spellcheck="false"
+              />
+              <button class="btn primary" id="resolveBtn" type="submit">Analiz et</button>
+            </div>
+          </label>
+          <p class="hint">
+            Video sayfasinin adresini, gomulu oynaticinin adresini ya da dogrudan
+            <code>.mp4</code> / <code>.m3u8</code> / <code>.mpd</code> baglantisini yapistirabilirsin.
+          </p>
+        </form>
+        <div id="resolveStatus" class="status" hidden></div>
+      </section>
+
+      <section id="resultCard" class="card" hidden>
+        <div class="media-head">
+          <img id="poster" class="poster" alt="" hidden />
+          <div class="media-meta">
+            <h2 id="mediaTitle">—</h2>
+            <p id="mediaSource" class="muted"></p>
+            <p id="mediaNote" class="note" hidden></p>
+          </div>
+        </div>
+
+        <h3 class="section-title">Bulunan kaynaklar</h3>
+        <ul id="candidateList" class="candidates"></ul>
+      </section>
+
+      <section id="optionsCard" class="card" hidden>
+        <h3 class="section-title">Indirme secenekleri</h3>
+        <div id="streamPickers" class="pickers"></div>
+
+        <label class="field">
+          <span class="field-label">Cikti bicimi</span>
+          <select id="formatSelect"></select>
+        </label>
+        <p id="formatHint" class="hint"></p>
+
+        <div class="actions">
+          <button class="btn primary" id="downloadBtn" type="button">Indirmeyi baslat</button>
+          <button class="btn ghost" id="cancelBtn" type="button" hidden>Iptal et</button>
+        </div>
+      </section>
+
+      <section id="progressCard" class="card" hidden>
+        <h3 class="section-title">Islem durumu</h3>
+        <p id="stageText" class="stage">Hazirlaniyor...</p>
+        <div class="bar"><div id="bar" class="bar-fill"></div></div>
+        <p id="stageDetail" class="muted small"></p>
+        <div id="resultArea" class="result" hidden></div>
+        <details class="logbox">
+          <summary>Teknik gunluk</summary>
+          <pre id="log"></pre>
+        </details>
+      </section>
+
+      <section class="card explain">
+        <h3 class="section-title">Nasil calisiyor?</h3>
+        <ol class="steps">
+          <li>
+            <strong>Cozumleme (sunucu, milisaniyeler).</strong> Netlify fonksiyonu sayfanin
+            HTML'ini okur ve icindeki medya adreslerini cikarir. Video byte'larina dokunmaz.
+          </li>
+          <li>
+            <strong>Indirme (senin bilgisayarin).</strong> Tarayici, dosyayi 4 MB'lik parcalar
+            veya HLS/DASH segmentleri halinde paralel ceker; sifreli HLS akislarini WebCrypto ile
+            kendisi cozer.
+          </li>
+          <li>
+            <strong>Birlestirme ve donusturme (senin islemcin).</strong> ffmpeg.wasm bir Web Worker
+            icinde calisir; video ve sesi birlestirir, MP4/MKV/MP3/WAV uretir.
+          </li>
+          <li>
+            <strong>Kaydetme.</strong> Sonuc dosyasi hicbir zaman sunucuya ugramadan dogrudan
+            diskine yazilir.
+          </li>
+        </ol>
+        <p class="muted small">
+          Sunucu yalnizca CORS engelini asmak icin byte aktarir. Oturum acmayi veya imzali adres
+          uretmeyi gerektiren siteler (ornegin YouTube) bu yontemle desteklenmez.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <span>MIT lisansi · Netlify uzerinde barindirilir</span>
+      <a href="https://github.com/Berke-aras/AnythingVideoDowloader" rel="noreferrer noopener"
+        >Kaynak kod</a
+      >
+    </footer>
+
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

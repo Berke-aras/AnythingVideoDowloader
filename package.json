@@ -1,0 +1,16 @@
+{
+  "name": "anything-video-downloader",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Tarayicida calisan, istemci CPU'sunu kullanan video/ses indirici (Netlify)",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/vendor-ffmpeg.mjs",
+    "dev": "npm run build && netlify dev"
+  },
+  "devDependencies": {
+    "@ffmpeg/core": "0.12.10",
+    "@ffmpeg/ffmpeg": "0.12.15",
+    "@netlify/functions": "^4.2.10"
+  }
+}
