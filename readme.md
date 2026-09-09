@@ -47,12 +47,13 @@ Bu sürüm işi tersine çevirir:
  4. dosya doğrudan diske kaydedilir
 ```
 
-**1. Çözümleme (sunucu, milisaniyeler).** `/api/resolve` sayfanın HTML'ini okur ve
-şunlara bakar: `og:video` / `twitter:player:stream` meta etiketleri, JSON-LD
-`contentUrl`, `<video>` ve `<source>` etiketleri, `application/x-mpegURL` bağlantıları
-ve son çare olarak tüm belgede (JSON kaçış dizileri çözülmüş hâlde) medya uzantısı
-taraması. Medya bulunamazsa gömülü oynatıcıları (`<iframe>`) bir seviye takip eder.
-Video baytlarına hiç dokunmaz.
+**1. Çözümleme (sunucu, milisaniyeler).** `/api/resolve` önce adresin bilinen bir
+platforma ait olup olmadığına bakar ve varsa o platformun kendi oynatıcı ucunu kullanır
+(YouTube, X, Instagram, Vimeo, Dailymotion, Reddit). Değilse sayfanın HTML'ini okur:
+`og:video` / `twitter:player:stream` meta etiketleri, JSON-LD `contentUrl`, `<video>` ve
+`<source>` etiketleri, `application/x-mpegURL` bağlantıları ve son çare olarak tüm
+belgede (JSON kaçış dizileri çözülmüş hâlde) medya uzantısı taraması. Hâlâ bulunamazsa
+gömülü oynatıcıları (`<iframe>`) bir seviye takip eder. Video baytlarına hiç dokunmaz.
 
 **2. İndirme (senin bilgisayarın).** Tarayıcı önce tek baytlık bir `Range` isteğiyle
 dosya boyutunu ve aralık desteğini ölçer, sonra dosyayı 4 MB'lik parçalar hâlinde 4
@@ -76,11 +77,24 @@ düşülür.
 
 ## Ne destekleniyor?
 
+### Platformlar
+
+| Platform | Durum | Nasıl |
+|---|---|---|
+| **YouTube** | Çalışıyor, IP'ye bağlı (aşağıya bakın) | InnerTube oynatıcı ucu; imza çözümü gerektirmeyen iOS / Android-VR istemci bağlamları. HLS listesi 144p–2160p, ayrı akışlar 4K'ya kadar |
+| **X / Twitter** | Çalışıyor | Herkese açık syndication ucu; HLS + MP4 varyantları |
+| **Vimeo** | Çalışıyor | Oynatıcı yapılandırması (HLS, DASH, doğrudan MP4) |
+| **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
+| **Instagram** | Yalnızca çerezle | Anonim erişim tamamen kapalı (`login_required`) |
+| **Reddit** | Pratikte hayır | Veri merkezi IP'lerini `403` ile reddediyor |
+
+### Biçimler ve protokoller
+
 - **Doğrudan dosyalar** — `.mp4`, `.webm`, `.mkv`, `.mov`, `.m4a`, `.mp3`, `.ogg`, `.wav`, `.flac`
 - **HLS** (`.m3u8`) — çoklu kalite seçimi, ayrı ses parçaları, AES-128 şifreli akışlar
 - **DASH** (`.mpd`) — `SegmentTemplate` (`$Number$` / `$Time$` / `SegmentTimeline`), `SegmentList`, `SegmentBase`
+- **Ayrı video + ses akışları** — iki dosya paralel indirilip tarayıcıda birleştirilir
 - **Gömülü videolu sayfalar** — `og:video`, JSON-LD, HTML5 `<video>`, iframe içindeki oynatıcılar
-- **Siteye özel çözümleyiciler** — Vimeo (oynatıcı yapılandırması), Dailymotion (oynatıcı üst verisi), Reddit (JSON ucu)
 
 ### Çıktı biçimleri
 
@@ -96,18 +110,49 @@ düşülür.
 
 ---
 
+## Oturum çerezi (Instagram ve YouTube için)
+
+Bazı platformlar sunucudan gelen anonim isteklere içerik vermez. Bunun tek çözümü,
+isteğin senin kimliğinle yapılmasıdır — `yt-dlp`'nin `--cookies` seçeneğiyle aynı
+mantık. Sitedeki **Gelişmiş** bölümüne kendi çerezini yapıştırabilirsin.
+
+**Çerezin nereye gittiği:** yalnızca tarayıcının `localStorage`'ında saklanır, her
+istekte `X-Site-Cookie` başlığıyla gönderilir ve fonksiyon onu hiçbir yere yazmadan
+doğrudan hedef siteye iletir. Yine de bu, hesabına erişim veren bir bilgidir:
+**kendi kurduğun kopyada kullan**, paylaşılan bir dağıtımda kullanma, işin bitince
+temizle.
+
+### YouTube ve bot kontrolü — ölçülen davranış
+
+YouTube, bulut sağlayıcılarının IP adreslerine sıklıkla *"Sign in to confirm you're
+not a bot"* döndürür. Çözümleyici, herkese açık service-worker ucundan alınan gerçek
+bir `visitorData` kimliği sunarak bu kontrolü aşmaya çalışır ve ilk tur boş dönerse
+kimliği tazeleyip bir kez daha dener.
+
+Ölçüm sonuçları:
+
+| Ortam | `visitorData` yok | `visitorData` var |
+|---|---|---|
+| Geliştirme konteyneri | 8 videonun 1'i | 4 videonun 4'ü |
+| **Netlify (üretim)** | — | **5 videonun 1'i** |
+
+Yani yöntem doğru çalışıyor ama Netlify'ın paylaşımlı AWS IP'leri ağır işaretlenmiş
+durumda. Çerez eklendiğinde istek senin hesabın adına yapılır ve bu kontrol devreye
+girmez. Kendi alan adında, farklı bir IP'den yayımlarsan oran da değişir.
+
+---
+
 ## Ne desteklenmiyor?
 
 Bunlar eksiklik değil, yöntemin sınırları:
 
-- **YouTube.** Akış adreslerini istemci tarafında çözülemeyen imzalarla (`n`/`sig`)
-  korur. Site bunu tespit eder ve açıkça uyarır.
-- **DRM korumalı içerik** (Widevine, FairPlay, PlayReady). Şifre çözme anahtarı
-  tarayıcının güvenli medya yoluna aittir, sayfaya verilmez.
-- **Oturum açmayı gerektiren içerik.** Sunucu tarafındaki çözümleyici kimlik
-  bilgisi taşımaz; Instagram, X ve benzeri siteler çoğu gönderi için sonuç vermez.
-- **Reddit** — Reddit veri merkezi IP'lerinden gelen istekleri (Netlify dâhil)
-  `403` ile reddediyor; çözümleyici var ama pratikte çoğu zaman boş döner.
+- **DRM korumalı içerik** (Widevine, FairPlay, PlayReady — Netflix, Disney+, Spotify).
+  Şifre çözme anahtarı tarayıcının güvenli medya yoluna aittir, sayfaya hiç verilmez.
+  Hiçbir istemci tarafı yöntem bunu aşamaz.
+- **Instagram, çerez olmadan.** Test edilen tüm anonim yollar (`api/v1/media/info`,
+  GraphQL, gömülü oynatıcı) `login_required` veya `429` döndürüyor.
+- **Reddit** — veri merkezi IP'lerinden gelen istekleri (Netlify dâhil) `403` ile
+  reddediyor; çözümleyici var ama pratikte çoğu zaman boş döner.
 - **Çok büyük dosyalar.** Dönüştürme tarayıcı belleğinde yapıldığı için ~1,5 GB
   üzerindeki videolarda bellek yetmeyebilir. Bu durumda **Orijinal** biçimini seç:
   dosya belleğe alınmadan doğrudan kaydedilir.
@@ -129,7 +174,7 @@ public/                     Netlify'a yayımlanan statik site
   vendor/ffmpeg/            yapım sırasında üretilir (depoya girmez)
 
 netlify/
-  functions/resolve.mts     medya adaylarını çıkarır
+  functions/resolve.mts     medya adaylarını çıkarır (platform çözümleyicileri dâhil)
   functions/proxy.mts       CORS aktarıcı
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
@@ -177,6 +222,9 @@ ve önbellek başlıkları. Ek ortam değişkeni veya gizli anahtar gerekmez.
   bant genişliği kotasından düşer. Yoğun kullanımda kotayı izle.
 - **Fonksiyon süresi.** Sunucu isteklerinin hepsi kısa tutulmuştur (4 MB parçalar,
   tek tek segmentler), böylece süre sınırına takılmaz.
+- **Çerezler.** Sunucu hiçbir çerezi saklamaz veya günlüğe yazmaz; başlıktan alıp
+  doğrudan hedef siteye iletir. Yine de bir oturum çerezi hesabına erişim verir —
+  yalnızca kendi kurduğun kopyada kullan.
 - **İçerik hakkı.** Bu araç yalnızca indirme hakkına sahip olduğun içerik için
   kullanılmalıdır. Telif hakkıyla korunan materyalin izinsiz indirilmesi ve
   dağıtılması sorumluluğu kullanıcıya aittir.
@@ -194,10 +242,10 @@ sudo apt install ffmpeg      # veya: brew install ffmpeg
 python app.py                # http://127.0.0.1:5000
 ```
 
-`yt-dlp` YouTube dâhil çok daha fazla siteyi destekler; ancak sunucu tarafında
-Python, FFmpeg ve kalıcı disk gerektirdiği için Netlify'da çalıştırılamaz. İki sürüm
-farklı ihtiyaçlar içindir: yerelde `yt-dlp`, herkese açık ve sunucusuz dağıtımda bu
-tarayıcı tabanlı sürüm.
+`yt-dlp` binlerce siteyi destekler ve kendi bilgisayarında çalıştığı için IP tabanlı
+bot kontrollerine de takılmaz; ancak sunucu tarafında Python, FFmpeg ve kalıcı disk
+gerektirdiği için Netlify'da çalıştırılamaz. İki sürüm farklı ihtiyaçlar içindir:
+kendi makinende `yt-dlp`, herkese açık ve sunucusuz dağıtımda bu tarayıcı tabanlı sürüm.
 
 ---
 

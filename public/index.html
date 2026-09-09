@@ -59,10 +59,11 @@
         <div id="resolveStatus" class="status" hidden></div>
 
         <details class="advanced">
-          <summary>Gelismis: oturum cerezi (Instagram ve gizli iceriklar icin)</summary>
+          <summary>Gelismis: oturum cerezi (Instagram, YouTube bot kontrolu ve gizli icerik icin)</summary>
           <p class="hint">
-            Instagram gibi bazi siteler oturum acmayan istemcilere medya adresi vermez. Kendi
-            tarayicindan aldigin cerezi buraya yapistirirsan istekler senin adina yapilir.
+            Instagram oturum acmayan istemcilere medya adresi hic vermez; YouTube da bulut
+            sunucularinin IP adreslerini siklikla bot olarak isaretler. Kendi tarayicindan aldigin
+            cerezi buraya yapistirirsan istekler senin adina yapilir ve bu engeller asilir.
             Cerez <strong>yalnizca bu tarayicida</strong> saklanir, her istekte dogrudan hedef
             siteye iletilir ve hicbir yerde kaydedilmez. Yine de bu, hesabina erisim veren bir
             bilgidir: yalnizca kendi kurdugun kopyada kullan ve isin bitince temizle.
@@ -145,8 +146,10 @@
           </li>
         </ol>
         <p class="muted small">
-          Sunucu yalnizca CORS engelini asmak icin byte aktarir. Oturum acmayi veya imzali adres
-          uretmeyi gerektiren siteler (ornegin YouTube) bu yontemle desteklenmez.
+          YouTube, X, Vimeo ve Dailymotion icin ayri cozumleyiciler vardir: medya adresi bu
+          platformlarin kendi oynatici uclarindan alinir. DRM ile korunan icerik (Netflix ve
+          benzeri) hicbir yontemle indirilemez; oturum acmayi gerektiren gonderiler icin
+          yukaridaki cerez alanini kullan.
         </p>
       </section>
     </main>

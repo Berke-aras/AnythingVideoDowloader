@@ -294,8 +294,8 @@ let cachedVisitorData: { value: string; expiresAt: number } | null = null;
  * Gercek bir ziyaretci kimligi (visitorData) sunuldugunda bu kontrol gecilir;
  * kimlik herkese acik service-worker veri ucundan alinir, hesap gerekmez.
  */
-async function youtubeVisitorData(): Promise<string | null> {
-  if (cachedVisitorData && cachedVisitorData.expiresAt > Date.now()) {
+async function youtubeVisitorData(forceRefresh = false): Promise<string | null> {
+  if (!forceRefresh && cachedVisitorData && cachedVisitorData.expiresAt > Date.now()) {
     return cachedVisitorData.value;
   }
   try {
@@ -310,7 +310,7 @@ async function youtubeVisitorData(): Promise<string | null> {
       /* duz metin uzerinden aranacak */
     }
     if (typeof value !== "string" || value.length < 10) {
-      value = cleaned.match(/"(Cgt[\w-]{20,})"/)?.[1] ?? null;
+      value = cleaned.match(/"(Cg[^"\\]{30,})"/)?.[1] ?? null;
     }
     if (typeof value === "string" && value.length >= 10) {
       cachedVisitorData = { value, expiresAt: Date.now() + 30 * 60 * 1000 };
@@ -340,9 +340,24 @@ async function youtubeExtract(pageUrl: URL, out: Map<string, Candidate>, cookie?
   const videoId = youtubeId(pageUrl);
   if (!videoId) return;
 
+  // Isaretlenmis bir ziyaretci kimligi bot kontrolunu tetikleyebilir; ilk tur
+  // bos donerse kimlik tazelenip bir kez daha denenir.
+  let result = await youtubeAttempt(videoId, out, await youtubeVisitorData(), cookie);
+  if (out.size === 0) {
+    result = await youtubeAttempt(videoId, out, await youtubeVisitorData(true), cookie);
+  }
+  if (out.size === 0 && result.reason) throw new Error(result.reason);
+  return result.title;
+}
+
+async function youtubeAttempt(
+  videoId: string,
+  out: Map<string, Candidate>,
+  visitorData: string | null,
+  cookie?: string,
+): Promise<{ title: string; reason: string }> {
   let title = "";
   let lastReason = "";
-  const visitorData = await youtubeVisitorData();
 
   for (const client of YT_CLIENTS) {
     let data: any;
@@ -450,8 +465,7 @@ async function youtubeExtract(pageUrl: URL, out: Map<string, Candidate>, cookie?
     if (out.size > 0) break;
   }
 
-  if (out.size === 0 && lastReason) throw new Error(lastReason);
-  return title;
+  return { title, reason: lastReason };
 }
 
 /* ------------------------------- X / Twitter ------------------------------ */
@@ -745,6 +759,11 @@ function noteFor(host: string, found: number, helperError: string, hasCookie: bo
     return hasCookie
       ? "Instagram cerezi ise yaramadi: suresi dolmus olabilir ya da gonderi gizli bir hesaba ait."
       : "Instagram, oturum acmayan istemcilere medya adresi vermiyor. Gelismis ayarlardan kendi Instagram cerezini yapistirirsan bu gonderi indirilebilir.";
+  }
+  if (/youtube\.com$|youtu\.be$/.test(h) && found === 0 && /bot|sign in/i.test(helperError)) {
+    return hasCookie
+      ? "YouTube cerezi kabul edilmedi. Cerezin suresi dolmus olabilir; tarayicindan yeniden kopyala."
+      : "YouTube bu sunucunun IP adresini bot olarak isaretledi. Gelismis ayarlardan kendi YouTube cerezini yapistirirsan istek senin hesabin adina yapilir ve bu kontrol asilir.";
   }
   if (found === 0 && helperError) {
     return `Site su yaniti verdi: ${helperError.slice(0, 160)}`;
