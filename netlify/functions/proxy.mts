@@ -10,7 +10,13 @@
  */
 
 import type { Config, Context } from "@netlify/functions";
-import { assertSafeUrl, corsHeaders, HttpError, upstreamHeaders } from "../lib/net.mjs";
+import {
+  assertSafeUrl,
+  corsHeaders,
+  dispatcherFor,
+  HttpError,
+  upstreamHeaders,
+} from "../lib/net.mjs";
 
 export default async (req: Request, _context: Context) => {
   if (req.method === "OPTIONS") {
@@ -53,7 +59,12 @@ export default async (req: Request, _context: Context) => {
 
   let upstream: Response;
   try {
-    upstream = await fetch(safe, { method: req.method, headers, redirect: "follow" });
+    upstream = await fetch(safe, {
+      method: req.method,
+      headers,
+      redirect: "follow",
+      dispatcher: dispatcherFor(safe),
+    } as RequestInit);
   } catch (err) {
     return new Response(`Kaynak adrese ulasilamadi: ${(err as Error).message}`, {
       status: 502,

@@ -85,7 +85,7 @@ düşülür.
 | **X / Twitter** | Çalışıyor | Herkese açık syndication ucu; HLS + MP4 varyantları |
 | **Vimeo** | Çalışıyor | Oynatıcı yapılandırması (HLS, DASH, doğrudan MP4) |
 | **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
-| **Instagram** | Yalnızca çerezle | Anonim erişim tamamen kapalı (`login_required`) |
+| **Instagram** | Çalışıyor | Instagram'ın kendi uçları oturum ister; herkese açık gönderiler için genel bir embed servisinin yönlendirmesinden CDN adresi alınır |
 | **Reddit** | Pratikte hayır | Veri merkezi IP'lerini `403` ile reddediyor |
 
 ### Biçimler ve protokoller
@@ -110,7 +110,21 @@ düşülür.
 
 ---
 
-## Oturum çerezi (Instagram ve YouTube için)
+## Instagram nasıl çözülüyor?
+
+Instagram'ın kendi uçlarının hepsi anonim isteklere kapalı — test edilen üç yol da
+(`api/v1/media/info`, GraphQL, gömülü oynatıcı) `login_required` veya `429` döndürüyor.
+Bu yüzden son adımda, sohbet uygulamalarının Instagram önizlemesi için kullandığı genel
+bir embed servisi devreye giriyor: gönderi adresi verilince doğrudan Instagram
+CDN'indeki dosyaya `302` ile yönlendiriyor. Çözümleyici yalnızca bu **yönlendirmedeki
+adresi** alır; video baytları o servisten geçmez, senin tarayıcın CDN'den indirir.
+
+Bunun bedeli şeffaf olmalı: bu adımda **gönderi kimliği üçüncü bir tarafa gönderilir**
+ve yalnızca Instagram'ın kendi uçları sonuç vermediğinde çalışır. Çerez verirsen o yol
+önce denenir ve embed servisine hiç gidilmez. Gizli hesaplardaki gönderiler bu yolla da
+inmez.
+
+## Oturum çerezi (gizli içerik ve YouTube için)
 
 Bazı platformlar sunucudan gelen anonim isteklere içerik vermez. Bunun tek çözümü,
 isteğin senin kimliğinle yapılmasıdır — `yt-dlp`'nin `--cookies` seçeneğiyle aynı
@@ -137,8 +151,27 @@ kimliği tazeleyip bir kez daha dener.
 | **Netlify (üretim)** | — | **5 videonun 1'i** |
 
 Yani yöntem doğru çalışıyor ama Netlify'ın paylaşımlı AWS IP'leri ağır işaretlenmiş
-durumda. Çerez eklendiğinde istek senin hesabın adına yapılır ve bu kontrol devreye
-girmez. Kendi alan adında, farklı bir IP'den yayımlarsan oran da değişir.
+durumda. Piped ve Invidious gibi genel YouTube ön yüzleri de aynı engele takıldığı için
+(`YouTube probably temporarily blocked`) onlar da çare değil.
+
+İki çözüm var:
+
+1. **Çerez.** Gelişmiş bölümüne YouTube çerezini yapıştır; istek senin hesabın adına
+   yapılır ve bot kontrolü devreye girmez.
+2. **Kendi çıkış proxy'n.** Netlify proje ayarlarında bir ortam değişkeni tanımla:
+
+   | Değişken | Anlamı |
+   |---|---|
+   | `UPSTREAM_PROXY` | `http://kullanici:parola@sunucu:port` — istekler buradan çıkar |
+   | `UPSTREAM_PROXY_HOSTS` | İsteğe bağlı. Varsayılan: `youtube.com,youtu.be,googlevideo.com,ytimg.com`. `*` yazarsan tüm trafik proxy'den geçer |
+
+   Varsayılan olarak **yalnızca YouTube alan adları** yönlendirilir; diğer sitelerin
+   trafiği doğrudan gider, böylece proxy bant genişliğin boşa harcanmaz. YouTube akış
+   adresleri, oynatıcı isteğini yapan IP'ye bağlandığı için video baytları da aynı
+   proxy'den geçer — proxy'nin kotasını buna göre seç.
+
+   Rastgele bulunmuş ücretsiz proxy'ler kullanma: tüm trafiği görebilir ve
+   değiştirebilirler. Kendi sunucun ya da güvendiğin bir sağlayıcı olsun.
 
 ---
 
@@ -149,8 +182,8 @@ Bunlar eksiklik değil, yöntemin sınırları:
 - **DRM korumalı içerik** (Widevine, FairPlay, PlayReady — Netflix, Disney+, Spotify).
   Şifre çözme anahtarı tarayıcının güvenli medya yoluna aittir, sayfaya hiç verilmez.
   Hiçbir istemci tarafı yöntem bunu aşamaz.
-- **Instagram, çerez olmadan.** Test edilen tüm anonim yollar (`api/v1/media/info`,
-  GraphQL, gömülü oynatıcı) `login_required` veya `429` döndürüyor.
+- **Gizli hesaplardaki içerik.** Instagram'ın herkese açık gönderileri çözülüyor ama
+  gizli bir hesabın gönderisi için o hesaba erişimi olan bir çerez gerekir.
 - **Reddit** — veri merkezi IP'lerinden gelen istekleri (Netlify dâhil) `403` ile
   reddediyor; çözümleyici var ama pratikte çoğu zaman boş döner.
 - **Çok büyük dosyalar.** Dönüştürme tarayıcı belleğinde yapıldığı için ~1,5 GB
@@ -225,6 +258,9 @@ ve önbellek başlıkları. Ek ortam değişkeni veya gizli anahtar gerekmez.
 - **Çerezler.** Sunucu hiçbir çerezi saklamaz veya günlüğe yazmaz; başlıktan alıp
   doğrudan hedef siteye iletir. Yine de bir oturum çerezi hesabına erişim verir —
   yalnızca kendi kurduğun kopyada kullan.
+- **Üçüncü taraf servis.** Instagram çözümü, Instagram'ın kendi uçları sonuç
+  vermediğinde genel bir embed servisine gönderi kimliğini gönderir. Video baytları
+  oradan geçmez, yalnızca adres alınır.
 - **İçerik hakkı.** Bu araç yalnızca indirme hakkına sahip olduğun içerik için
   kullanılmalıdır. Telif hakkıyla korunan materyalin izinsiz indirilmesi ve
   dağıtılması sorumluluğu kullanıcıya aittir.

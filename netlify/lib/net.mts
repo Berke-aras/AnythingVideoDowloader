@@ -6,6 +6,7 @@
  */
 
 import { lookup } from "node:dns/promises";
+import { ProxyAgent } from "undici";
 
 export const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
@@ -104,6 +105,51 @@ export function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: corsHeaders({ "Content-Type": "application/json; charset=utf-8" }),
   });
+}
+
+/* ------------------------- istege bagli cikis proxy'si ------------------------- */
+
+/**
+ * YouTube, bulut saglayicilarinin IP adreslerini bot olarak isaretliyor. Site
+ * sahibi kendi guvendigi bir proxy'yi UPSTREAM_PROXY ortam degiskenine
+ * yazarsa, o platformlara giden istekler oradan cikar.
+ *
+ * Varsayilan olarak yalnizca YouTube alan adlari yonlendirilir; boylece diger
+ * sitelerin trafigi ve bant genisligi bosuna proxy'den gecmez.
+ * UPSTREAM_PROXY_HOSTS ile bu liste degistirilebilir (virgulle ayrilmis).
+ */
+const DEFAULT_PROXY_HOSTS = ["youtube.com", "youtu.be", "googlevideo.com", "ytimg.com"];
+
+let cachedAgent: { key: string; agent: ProxyAgent } | null = null;
+
+function proxySettings(): { url: string; hosts: string[] } | null {
+  const url = process.env.UPSTREAM_PROXY?.trim();
+  if (!url) return null;
+  const raw = process.env.UPSTREAM_PROXY_HOSTS?.trim();
+  const hosts = raw
+    ? raw.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean)
+    : DEFAULT_PROXY_HOSTS;
+  return { url, hosts };
+}
+
+/**
+ * Hedef, proxy kapsamindaysa kullanilacak undici dispatcher'ini doner.
+ * Yapilandirma yoksa undefined doner ve istek dogrudan gider.
+ */
+export function dispatcherFor(target: URL): ProxyAgent | undefined {
+  const settings = proxySettings();
+  if (!settings) return undefined;
+
+  const host = target.hostname.toLowerCase();
+  const inScope =
+    settings.hosts.includes("*") ||
+    settings.hosts.some((h) => host === h || host.endsWith(`.${h}`));
+  if (!inScope) return undefined;
+
+  if (cachedAgent?.key !== settings.url) {
+    cachedAgent = { key: settings.url, agent: new ProxyAgent(settings.url) };
+  }
+  return cachedAgent.agent;
 }
 
 /** Hedef siteye tarayici gibi gorunen istek basliklari uretir. */

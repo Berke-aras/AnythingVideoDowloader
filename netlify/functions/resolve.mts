@@ -7,7 +7,13 @@
  */
 
 import type { Config, Context } from "@netlify/functions";
-import { assertSafeUrl, HttpError, jsonResponse, upstreamHeaders } from "../lib/net.mjs";
+import {
+  assertSafeUrl,
+  dispatcherFor,
+  HttpError,
+  jsonResponse,
+  upstreamHeaders,
+} from "../lib/net.mjs";
 
 const MEDIA_EXT =
   "m3u8|mpd|mp4|m4v|mov|webm|mkv|m4a|mp3|aac|ogg|oga|opus|wav|flac|ts";
@@ -136,7 +142,8 @@ async function fetchText(url: URL, timeoutMs: number, options: FetchOptions = {}
     headers,
     redirect: "follow",
     signal: AbortSignal.timeout(timeoutMs),
-  });
+    dispatcher: dispatcherFor(url),
+  } as RequestInit);
   const type = res.headers.get("content-type") || "";
   const reader = res.body?.getReader();
   let text = "";
@@ -618,7 +625,16 @@ async function instagramExtract(pageUrl: URL, out: Map<string, Candidate>, cooki
         addCandidate(out, { url: m[1], kind: "video", ext: "mp4", label: "Video" });
       }
     } catch {
-      /* umit kesildi; cagiran taraf aciklayici not gosterecek */
+      /* son care asagida denenir */
+    }
+  }
+
+  // 4) Herkese acik embed servisi. Instagram'in kendi uclari oturum istedigi
+  //    icin, cerez verilmediginde calisan tek yol budur.
+  if (out.size === 0) {
+    const url = await instagramViaEmbedService(shortcode);
+    if (url) {
+      addCandidate(out, { url, kind: "video", ext: "mp4", label: "Video - herkese acik embed servisi" });
     }
   }
 
@@ -629,7 +645,42 @@ async function instagramExtract(pageUrl: URL, out: Map<string, Candidate>, cooki
         : "Instagram oturum acmadan medya adresi vermiyor.",
     );
   }
-  return title;
+  return title || `Instagram ${shortcode}`;
+}
+
+/**
+ * Sohbet uygulamalarinin Instagram onizlemesi icin kullandigi acik servis,
+ * gonderi adresini dogrudan Instagram CDN'indeki dosyaya yonlendirir. Buradan
+ * yalnizca yonlendirmedeki adres alinir; video baytlari servisten gecmez.
+ *
+ * Not: bu adim gonderi kimligini ucuncu bir tarafa gonderir ve yalnizca
+ * Instagram'in kendi uclari sonuc vermediginde calisir.
+ */
+const IG_EMBED_SERVICE = "https://www.kkinstagram.com";
+
+async function instagramViaEmbedService(shortcode: string): Promise<string | null> {
+  for (const path of [`videos/${shortcode}/1`, `reel/${shortcode}/`, `p/${shortcode}/`]) {
+    try {
+      const res = await fetch(`${IG_EMBED_SERVICE}/${path}`, {
+        headers: { "User-Agent": "TelegramBot (like TwitterBot)" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(8000),
+      });
+      await res.body?.cancel().catch(() => {});
+      const location = res.headers.get("location");
+      if (!location || !/^https:\/\//.test(location)) continue;
+
+      // Fotograf gonderilerinde de yonlendirme gelir; yalnizca videoyu al.
+      const head = await fetch(location, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      if (head && /^video\//i.test(head.headers.get("content-type") || "")) return location;
+    } catch {
+      /* sonraki yol denenir */
+    }
+  }
+  return null;
 }
 
 /* ----------------------- siteye ozel cozumleyiciler ----------------------- */
@@ -758,7 +809,7 @@ function noteFor(host: string, found: number, helperError: string, hasCookie: bo
   if (/instagram\.com$/.test(h) && found === 0) {
     return hasCookie
       ? "Instagram cerezi ise yaramadi: suresi dolmus olabilir ya da gonderi gizli bir hesaba ait."
-      : "Instagram, oturum acmayan istemcilere medya adresi vermiyor. Gelismis ayarlardan kendi Instagram cerezini yapistirirsan bu gonderi indirilebilir.";
+      : "Gonderiye ulasilamadi. Gizli hesaplar ve videosuz gonderiler icin sonuc donmez; gizli bir gonderiyse gelismis ayarlardan kendi Instagram cerezini kullanabilirsin.";
   }
   if (/youtube\.com$|youtu\.be$/.test(h) && found === 0 && /bot|sign in/i.test(helperError)) {
     return hasCookie
