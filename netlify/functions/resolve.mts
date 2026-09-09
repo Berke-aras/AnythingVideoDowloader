@@ -716,7 +716,7 @@ const SITE_HELPERS: Array<{
   {
     // Vimeo: oynatici yapilandirmasi HLS ve dogrudan mp4 adreslerini verir.
     match: /(^|\.)vimeo\.com$/,
-    run: async (pageUrl, out) => {
+    run: async (pageUrl, out, cookie) => {
       const id = pageUrl.pathname.match(/(\d{6,})/)?.[1];
       if (!id) return;
       const configUrl = new URL(`https://player.vimeo.com/video/${id}/config`);
@@ -746,7 +746,7 @@ const SITE_HELPERS: Array<{
   {
     // Dailymotion: oynatici ust verisi qualities altinda adresleri listeler.
     match: /(^|\.)dailymotion\.com$|(^|\.)dai\.ly$/,
-    run: async (pageUrl, out) => {
+    run: async (pageUrl, out, cookie) => {
       const id = pageUrl.pathname.match(/(?:video\/)?([a-z0-9]{5,})\/?$/i)?.[1];
       if (!id) return;
       const metaUrl = new URL(`https://www.dailymotion.com/player/metadata/video/${id}`);
@@ -766,7 +766,7 @@ const SITE_HELPERS: Array<{
   {
     // Reddit medya adresini yalnizca JSON ucunda verir.
     match: /(^|\.)reddit\.com$/,
-    run: async (pageUrl, out) => {
+    run: async (pageUrl, out, cookie) => {
       const jsonUrl = new URL(pageUrl.toString().split("?")[0].replace(/\/$/, "") + ".json");
       const { text } = await fetchText(jsonUrl, 5000, { cookie });
       extractFromDocument(text, jsonUrl.toString(), out);
