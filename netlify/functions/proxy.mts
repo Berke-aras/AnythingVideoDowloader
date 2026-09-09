@@ -74,6 +74,11 @@ export default async (req: Request, _context: Context) => {
   }
   if (!out["content-type"]) out["content-type"] = "application/octet-stream";
 
+  // Netlify'in uc katmani govdesiz yanitlarda Content-Length'i kaldiriyor.
+  // Istemcinin dosyayi parcalara bolebilmesi icin uzunlugu ayrica bildiriyoruz.
+  const length = upstream.headers.get("content-length");
+  if (encoding === "identity" && length) out["x-upstream-length"] = length;
+
   return new Response(req.method === "HEAD" ? null : upstream.body, {
     status: upstream.status,
     headers: out,

@@ -10,10 +10,57 @@ const CHUNK_SIZE = 4 * 1024 * 1024; // Netlify fonksiyon suresi icinde rahatca b
 const CHUNK_CONCURRENCY = 4;
 const SEGMENT_CONCURRENCY = 6;
 
+// Gecici sunucu hatalari: paralel istek atan siteler siklikla 429 dondurur.
+const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 4;
+
 export function proxied(url, ref) {
   const q = new URLSearchParams({ url });
   if (ref) q.set("ref", ref);
   return `/api/proxy?${q}`;
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason ?? new DOMException("Iptal edildi", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * Proxy uzerinden istek atar; gecici hatalarda ustel geri cekilme ile yeniden dener.
+ * Kalici hatalar (404, 403 gibi) oldugu gibi dondurulur, karar cagirana birakilir.
+ */
+async function httpGet(url, { ref, headers, signal } = {}) {
+  let lastError = null;
+  let retryAfterMs = 0;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      const backoff = Math.min(8000, 600 * 2 ** (attempt - 1)) + Math.random() * 300;
+      await sleep(Math.max(retryAfterMs, backoff), signal);
+    }
+    try {
+      const res = await fetch(proxied(url, ref), { headers, signal });
+      if (!RETRY_STATUS.has(res.status)) return res;
+
+      await res.body?.cancel().catch(() => {});
+      const retryAfter = Number(res.headers.get("retry-after"));
+      retryAfterMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 0;
+      lastError = new Error(`Sunucu gecici olarak reddetti (${res.status})`);
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      lastError = err;
+    }
+  }
+  throw lastError ?? new Error("Istek basarisiz oldu.");
 }
 
 /** Sinirli es zamanlilikla is havuzu calistirir. */
@@ -43,21 +90,37 @@ export function concatChunks(parts, totalLength) {
 }
 
 export async function fetchText(url, ref, signal) {
-  const res = await fetch(proxied(url, ref), { signal });
+  const res = await httpGet(url, { ref, signal });
   if (!res.ok) throw new Error(`${res.status} — kaynak okunamadi`);
   return res.text();
 }
 
-/** Dosya boyutu ve Range destegini ogrenir. */
+/**
+ * Dosya boyutunu ve Range destegini olcer.
+ *
+ * Tek baytlik bir Range istegi kullanilir: 206 yaniti hem aralik destegini
+ * kanitlar hem de Content-Range basliginda toplam boyutu verir. HEAD'e
+ * guvenilmez, cunku araya giren CDN'ler govdesiz yanitlarda Content-Length'i
+ * kaldirabiliyor.
+ */
 async function probe(url, ref, signal) {
   try {
-    const res = await fetch(proxied(url, ref), { method: "HEAD", signal });
-    if (!res.ok) return { size: 0, ranges: false };
-    const size = Number(res.headers.get("content-length") || 0);
-    const ranges = (res.headers.get("accept-ranges") || "").includes("bytes");
-    return { size, ranges, type: res.headers.get("content-type") || "" };
+    const res = await httpGet(url, { ref, headers: { Range: "bytes=0-0" }, signal });
+    const type = res.headers.get("content-type") || "";
+
+    if (res.status === 206) {
+      const total = Number((res.headers.get("content-range") || "").split("/")[1]);
+      await res.body?.cancel().catch(() => {});
+      if (Number.isFinite(total) && total > 0) return { size: total, ranges: true, type };
+      return { size: 0, ranges: false, type };
+    }
+
+    // 206 gelmediyse sunucu araligi yok saydi: tum govdeyi gondermistir.
+    await res.body?.cancel().catch(() => {});
+    const size = Number(res.headers.get("x-upstream-length") || res.headers.get("content-length") || 0);
+    return { size: res.ok ? size : 0, ranges: false, type };
   } catch {
-    return { size: 0, ranges: false };
+    return { size: 0, ranges: false, type: "" };
   }
 }
 
@@ -69,26 +132,30 @@ export async function downloadFile(url, { ref, onProgress, signal } = {}) {
   const info = await probe(url, ref, signal);
 
   if (info.size > CHUNK_SIZE && info.ranges) {
-    const ranges = [];
-    for (let start = 0; start < info.size; start += CHUNK_SIZE) {
-      ranges.push([start, Math.min(start + CHUNK_SIZE, info.size) - 1]);
-    }
-    let done = 0;
-    const parts = await pool(ranges, CHUNK_CONCURRENCY, async ([start, end]) => {
-      const res = await fetch(proxied(url, ref), {
-        headers: { Range: `bytes=${start}-${end}` },
-        signal,
+    try {
+      const ranges = [];
+      for (let start = 0; start < info.size; start += CHUNK_SIZE) {
+        ranges.push([start, Math.min(start + CHUNK_SIZE, info.size) - 1]);
+      }
+      let done = 0;
+      const parts = await pool(ranges, CHUNK_CONCURRENCY, async ([start, end]) => {
+        const res = await httpGet(url, { ref, signal, headers: { Range: `bytes=${start}-${end}` } });
+        if (!res.ok && res.status !== 206) throw new Error(`Parca indirilemedi (${res.status})`);
+        const buf = new Uint8Array(await res.arrayBuffer());
+        done += buf.byteLength;
+        onProgress?.(done, info.size);
+        return buf;
       });
-      if (!res.ok && res.status !== 206) throw new Error(`Parca indirilemedi (${res.status})`);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      done += buf.byteLength;
-      onProgress?.(done, info.size);
-      return buf;
-    });
-    return concatChunks(parts, info.size);
+      return concatChunks(parts, info.size);
+    } catch (err) {
+      // Bazi sunucular es zamanli istekleri sinirlar. Yeniden denemeler de
+      // yetmediyse tek baglantiyla, bastan indirmeyi dene.
+      if (err.name === "AbortError") throw err;
+      onProgress?.(0, info.size);
+    }
   }
 
-  const res = await fetch(proxied(url, ref), { signal });
+  const res = await httpGet(url, { ref, signal });
   if (!res.ok) throw new Error(`Indirme basarisiz (${res.status})`);
   const total = Number(res.headers.get("content-length") || info.size || 0);
   const reader = res.body.getReader();
@@ -204,7 +271,7 @@ export function parseM3U8(text, baseUrl) {
 
 async function importKey(uri, ref, signal, cache) {
   if (cache.has(uri)) return cache.get(uri);
-  const res = await fetch(proxied(uri, ref), { signal });
+  const res = await httpGet(uri, { ref, signal });
   if (!res.ok) throw new Error("HLS sifre anahtari alinamadi.");
   const raw = await res.arrayBuffer();
   const key = await crypto.subtle.importKey("raw", raw, "AES-CBC", false, ["decrypt"]);
@@ -244,7 +311,7 @@ export async function downloadHls(playlistUrl, { ref, onProgress, signal } = {})
   }
 
   const downloaded = await pool(parsed.segments, SEGMENT_CONCURRENCY, async (seg, i) => {
-    const res = await fetch(proxied(seg.url, ref), { signal });
+    const res = await httpGet(seg.url, { ref, signal });
     if (!res.ok) throw new Error(`Segment ${i + 1} indirilemedi (${res.status})`);
     let data = new Uint8Array(await res.arrayBuffer());
     if (seg.key && seg.key.method === "AES-128") {
@@ -395,7 +462,7 @@ export async function downloadDashStream(stream, { ref, onProgress, signal } = {
   let finished = 0;
   let bytes = 0;
   const parts = await pool(stream.urls, SEGMENT_CONCURRENCY, async (url, i) => {
-    const res = await fetch(proxied(url, ref), { signal });
+    const res = await httpGet(url, { ref, signal });
     if (!res.ok) throw new Error(`DASH parcasi ${i + 1} indirilemedi (${res.status})`);
     const data = new Uint8Array(await res.arrayBuffer());
     finished++;

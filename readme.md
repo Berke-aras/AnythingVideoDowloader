@@ -54,11 +54,14 @@ ve son çare olarak tüm belgede (JSON kaçış dizileri çözülmüş hâlde) m
 taraması. Medya bulunamazsa gömülü oynatıcıları (`<iframe>`) bir seviye takip eder.
 Video baytlarına hiç dokunmaz.
 
-**2. İndirme (senin bilgisayarın).** Tarayıcı dosyayı 4 MB'lik `Range` parçaları
-hâlinde 4 paralel istekle çeker; HLS/DASH ise segmentleri 6 paralel istekle indirir.
+**2. İndirme (senin bilgisayarın).** Tarayıcı önce tek baytlık bir `Range` isteğiyle
+dosya boyutunu ve aralık desteğini ölçer, sonra dosyayı 4 MB'lik parçalar hâlinde 4
+paralel istekle çeker; HLS/DASH ise segmentleri 6 paralel istekle indirir.
 `#EXT-X-KEY` ile şifrelenmiş HLS akışları WebCrypto (AES-CBC) ile tarayıcıda çözülür.
-Parçalı indirme aynı zamanda her sunucu isteğini kısa tutar, böylece Netlify
-fonksiyon süre sınırı aşılmaz.
+Geçici hatalar (`429`, `503` …) üstel geri çekilmeyle 4 kez yeniden denenir; sunucu
+eşzamanlı isteklere ısrarla direnirse indirme tek bağlantıya düşer. Parçalı indirme
+aynı zamanda her sunucu isteğini kısa tutar, böylece Netlify fonksiyon süre sınırı
+aşılmaz.
 
 **3. Birleştirme ve dönüştürme (senin işlemcin).** `ffmpeg.wasm` ayrı bir Web Worker
 içinde çalışır. Ayrı video ve ses akışları yeniden kodlanmadan (`-c copy`) tek
