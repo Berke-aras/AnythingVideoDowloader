@@ -51,11 +51,34 @@
             </div>
           </label>
           <p class="hint">
-            Video sayfasinin adresini, gomulu oynaticinin adresini ya da dogrudan
-            <code>.mp4</code> / <code>.m3u8</code> / <code>.mpd</code> baglantisini yapistirabilirsin.
+            YouTube, X, Vimeo, Dailymotion ve gomulu video iceren sayfalar desteklenir.
+            Dogrudan <code>.mp4</code> / <code>.m3u8</code> / <code>.mpd</code> baglantisi da
+            yapistirabilirsin.
           </p>
         </form>
         <div id="resolveStatus" class="status" hidden></div>
+
+        <details class="advanced">
+          <summary>Gelismis: oturum cerezi (Instagram ve gizli iceriklar icin)</summary>
+          <p class="hint">
+            Instagram gibi bazi siteler oturum acmayan istemcilere medya adresi vermez. Kendi
+            tarayicindan aldigin cerezi buraya yapistirirsan istekler senin adina yapilir.
+            Cerez <strong>yalnizca bu tarayicida</strong> saklanir, her istekte dogrudan hedef
+            siteye iletilir ve hicbir yerde kaydedilmez. Yine de bu, hesabina erisim veren bir
+            bilgidir: yalnizca kendi kurdugun kopyada kullan ve isin bitince temizle.
+          </p>
+          <label class="field">
+            <span class="field-label">Cerez basligi (ornek: sessionid=...; csrftoken=...)</span>
+            <textarea
+              id="cookieInput"
+              rows="3"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="sessionid=ABC123; ds_user_id=456; csrftoken=XYZ"
+            ></textarea>
+          </label>
+          <p id="cookieStatus" class="hint"></p>
+        </details>
       </section>
 
       <section id="resultCard" class="card" hidden>

@@ -20,6 +20,14 @@ export function proxied(url, ref) {
   return `/api/proxy?${q}`;
 }
 
+// Kullanicinin verdigi oturum cerezi. Yalnizca istek basliginda tasinir ve
+// sunucu tarafinda hedef siteye iletilir; hicbir yerde saklanmaz.
+let siteCookie = "";
+
+export function setSiteCookie(value) {
+  siteCookie = value || "";
+}
+
 function sleep(ms, signal) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, ms);
@@ -48,7 +56,10 @@ async function httpGet(url, { ref, headers, signal } = {}) {
       await sleep(Math.max(retryAfterMs, backoff), signal);
     }
     try {
-      const res = await fetch(proxied(url, ref), { headers, signal });
+      const res = await fetch(proxied(url, ref), {
+        headers: { ...headers, ...(siteCookie ? { "X-Site-Cookie": siteCookie } : {}) },
+        signal,
+      });
       if (!RETRY_STATUS.has(res.status)) return res;
 
       await res.body?.cancel().catch(() => {});

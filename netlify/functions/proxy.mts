@@ -47,6 +47,9 @@ export default async (req: Request, _context: Context) => {
   // Content-Length ile aktarilan byte sayisi birbirini tutmaz, dosya kirpilir.
   // Medya dosyalari zaten sikistirilmis oldugundan kayip da olmaz.
   headers["Accept-Encoding"] = "identity";
+  // Kullanicinin kendi oturum cerezi (varsa) yalnizca hedef siteye iletilir.
+  const cookie = req.headers.get("x-site-cookie");
+  if (cookie) headers.Cookie = cookie;
 
   let upstream: Response;
   try {

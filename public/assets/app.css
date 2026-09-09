@@ -224,6 +224,48 @@ code {
   font-size: 0.85em;
 }
 
+.advanced {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.advanced summary:hover {
+  color: var(--text);
+}
+
+.advanced .field {
+  margin-top: 0.8rem;
+}
+
+textarea {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.badge.pair {
+  background: #7c3aed;
+}
+
 .status {
   margin-top: 0.9rem;
   padding: 0.7rem 0.9rem;

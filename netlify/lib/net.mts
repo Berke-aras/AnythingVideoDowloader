@@ -92,7 +92,7 @@ export function corsHeaders(extra: Record<string, string> = {}): Record<string, 
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-    "Access-Control-Allow-Headers": "Range, Content-Type",
+    "Access-Control-Allow-Headers": "Range, Content-Type, X-Site-Cookie",
     "Access-Control-Expose-Headers":
       "Content-Length, Content-Range, Accept-Ranges, Content-Type, X-Final-Url, X-Upstream-Length",
     ...extra,

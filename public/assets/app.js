@@ -9,6 +9,7 @@ import {
   fetchText,
   parseM3U8,
   parseMpd,
+  setSiteCookie,
 } from "./engine.js";
 import { conversionArgs, isFFmpegLoaded, loadFFmpeg, mergeArgs, run } from "./ffmpeg.js";
 
@@ -38,12 +39,41 @@ const els = {
   result: $("resultArea"),
   log: $("log"),
   cpuChip: $("cpuChip"),
+  cookie: $("cookieInput"),
+  cookieStatus: $("cookieStatus"),
 };
 
 /** Uygulama durumu. */
 const state = { page: null, candidate: null, plan: null, controller: null };
 
 const AUDIO_FORMATS = new Set(["mp3", "m4a", "wav"]);
+
+/* ------------------------------ cerezler --------------------------- */
+
+const COOKIE_STORAGE_KEY = "avd.siteCookie";
+
+function loadSiteCookie() {
+  try {
+    return localStorage.getItem(COOKIE_STORAGE_KEY) || "";
+  } catch {
+    return ""; // gizli sekmede depolama kapali olabilir
+  }
+}
+
+function saveSiteCookie(value) {
+  try {
+    if (value) localStorage.setItem(COOKIE_STORAGE_KEY, value);
+    else localStorage.removeItem(COOKIE_STORAGE_KEY);
+  } catch {
+    /* depolama yoksa cerez yalnizca bu sekmede gecerli olur */
+  }
+}
+
+/** Cerez yalnizca istek basliginda tasinir; adres cubuguna veya kayda girmez. */
+function siteCookieHeader() {
+  const value = els.cookie?.value.trim();
+  return value ? { "X-Site-Cookie": value } : {};
+}
 
 /* --------------------------- yardimcilar --------------------------- */
 
@@ -62,10 +92,15 @@ function bytesToSize(n) {
 function safeFileName(name, ext) {
   const base =
     (name || "video")
+      // Dosya sistemlerinde gecersiz karakterler, kontrol karakterleri ve
+      // tarayicilarin indirme adini bozdugu emoji/simge blogu temizlenir.
       .replace(/[\\/:*?"<>|]/g, " ")
+      .replace(/[\u0000-\u001f\u007f]/g, "")
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "")
       .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 90) || "video";
+      .replace(/^[.\s]+|[.\s]+$/g, "")
+      .slice(0, 90)
+      .trim() || "video";
   return `${base}.${ext}`;
 }
 
@@ -114,7 +149,9 @@ async function resolveUrl(event) {
   state.plan = null;
 
   try {
-    const res = await fetch(`/api/resolve?url=${encodeURIComponent(url)}`);
+    const res = await fetch(`/api/resolve?url=${encodeURIComponent(url)}`, {
+      headers: siteCookieHeader(),
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Sunucu hatasi (${res.status})`);
     state.page = data;
@@ -155,14 +192,8 @@ function renderResult(data) {
 
     const badge = document.createElement("span");
     badge.className = `badge ${candidate.kind}`;
-    badge.textContent =
-      candidate.kind === "hls"
-        ? "HLS"
-        : candidate.kind === "dash"
-          ? "DASH"
-          : candidate.kind === "audio"
-            ? "SES"
-            : "VIDEO";
+    const BADGES = { hls: "HLS", dash: "DASH", pair: "V+S", audio: "SES", video: "VIDEO" };
+    badge.textContent = BADGES[candidate.kind] ?? "VIDEO";
 
     const text = document.createElement("span");
     text.className = "candidate-text";
@@ -196,6 +227,8 @@ async function selectCandidate(candidate, button) {
       await prepareHls(candidate);
     } else if (candidate.kind === "dash") {
       await prepareDash(candidate);
+    } else if (candidate.kind === "pair") {
+      preparePair(candidate);
     } else {
       state.plan = { type: "progressive", url: candidate.url, ext: candidate.ext || "mp4" };
     }
@@ -305,10 +338,33 @@ async function prepareDash(candidate) {
   }
 }
 
+/**
+ * Ayri video ve ses akisi sunan kaynaklar (ornegin YouTube'un yuksek
+ * cozunurluklu bicimleri). Iki dosya indirilip istemcide birlestirilir.
+ */
+function preparePair(candidate) {
+  const videos = candidate.videoOptions ?? [];
+  const audios = candidate.audioOptions ?? [];
+  if (!videos.length || !audios.length) throw new Error("Eslesecek akis bulunamadi.");
+
+  const plan = { type: "pair", video: videos[0], audio: audios[0], ext: "mp4" };
+  state.plan = plan;
+
+  addPicker("Video kalitesi", videos, (index) => {
+    plan.video = videos[index];
+    plan.ext = videos[index].ext || "mp4";
+  });
+  addPicker("Ses kalitesi", audios, (index) => {
+    plan.audio = audios[index];
+  });
+}
+
 function buildFormatOptions() {
   const plan = state.plan;
   const hasVideo =
-    plan.type === "dash" ? Boolean(plan.video) : state.candidate.kind !== "audio";
+    plan.type === "dash" || plan.type === "pair"
+      ? Boolean(plan.video)
+      : state.candidate.kind !== "audio";
   const singleStream =
     plan.type === "progressive" ||
     (plan.type === "hls" && !plan.audioUrl) ||
@@ -356,6 +412,13 @@ function updateFormatHint() {
 
 /** Plana gore indirilecek akislari belirler. */
 function planStreams(plan, wantsAudioOnly) {
+  if (plan.type === "pair") {
+    if (wantsAudioOnly) return [{ url: plan.audio.url, role: "video" }];
+    return [
+      { url: plan.video.url, role: "video" },
+      { url: plan.audio.url, role: "audio" },
+    ];
+  }
   if (plan.type === "hls") {
     if (wantsAudioOnly && plan.audioUrl) return [{ url: plan.audioUrl, role: "video" }];
     const list = [{ url: plan.videoUrl, role: "video" }];
@@ -412,18 +475,37 @@ async function startDownload() {
       const streams = planStreams(plan, wantsAudioOnly);
       for (const [i, item] of streams.entries()) {
         const suffix = streams.length > 1 ? ` (${i + 1}/${streams.length})` : "";
-        const onProgress = (done, total, bytes) => {
-          const base = total ? (i + done / total) / streams.length : i / streams.length;
-          setProgress(base * downloadWeight);
-          setStage(
-            plan.type === "hls" ? `HLS segmentleri indiriliyor${suffix}` : `DASH parcalari indiriliyor${suffix}`,
-            `${done}/${total || "?"} parca - ${bytesToSize(bytes)}`,
-          );
-        };
-        const data =
-          plan.type === "hls"
-            ? await downloadHls(item.url, { ref, signal, onProgress })
-            : await downloadDashStream(item.stream, { ref, signal, onProgress });
+        const stageText = {
+          hls: `HLS segmentleri indiriliyor${suffix}`,
+          dash: `DASH parcalari indiriliyor${suffix}`,
+          pair: `${item.role === "audio" ? "Ses" : "Video"} akisi indiriliyor${suffix}`,
+        }[plan.type];
+
+        let data;
+        if (plan.type === "pair") {
+          data = await downloadFile(item.url, {
+            ref,
+            signal,
+            onProgress: (done, total) => {
+              const base = total ? (i + done / total) / streams.length : i / streams.length;
+              setProgress(base * downloadWeight);
+              setStage(
+                stageText,
+                `${bytesToSize(done)}${total ? ` / ${bytesToSize(total)}` : ""}`,
+              );
+            },
+          });
+        } else {
+          const onProgress = (done, total, bytes) => {
+            const base = total ? (i + done / total) / streams.length : i / streams.length;
+            setProgress(base * downloadWeight);
+            setStage(stageText, `${done}/${total || "?"} parca - ${bytesToSize(bytes)}`);
+          };
+          data =
+            plan.type === "hls"
+              ? await downloadHls(item.url, { ref, signal, onProgress })
+              : await downloadDashStream(item.stream, { ref, signal, onProgress });
+        }
         if (item.role === "video") videoData = data;
         else audioData = data;
       }
@@ -442,8 +524,14 @@ async function startDownload() {
     }
 
     const outExt = format === "mp4-reencode" ? "mp4" : format;
-    const inputs = [{ name: `in_v.${plan.ext}`, data: videoData }];
-    if (audioData) inputs.push({ name: `in_a.${plan.ext}`, data: audioData });
+    // Ayri akislarda video ve ses farkli kapsayicilarda olabilir (webm + m4a);
+    // dosya adlarini gercek uzantilariyla ver ki ffmpeg dogru cozucuyu secsin.
+    const videoExt =
+      plan.type === "pair" ? (wantsAudioOnly ? plan.audio.ext : plan.video.ext) || "mp4" : plan.ext;
+    const audioExt = plan.type === "pair" ? plan.audio.ext || "m4a" : plan.ext;
+
+    const inputs = [{ name: `in_v.${videoExt}`, data: videoData }];
+    if (audioData) inputs.push({ name: `in_a.${audioExt}`, data: audioData });
 
     /** Secilen bicim icin ffmpeg argumanlarini uretir. */
     const buildArgs = (targetFormat, output) =>
@@ -540,6 +628,17 @@ els.form.addEventListener("submit", resolveUrl);
 els.downloadBtn.addEventListener("click", startDownload);
 els.cancelBtn.addEventListener("click", () => state.controller?.abort());
 els.format.addEventListener("change", updateFormatHint);
+
+els.cookie.value = loadSiteCookie();
+setSiteCookie(els.cookie.value);
+els.cookie.addEventListener("change", () => {
+  const value = els.cookie.value.trim();
+  saveSiteCookie(value);
+  setSiteCookie(value);
+  els.cookieStatus.textContent = value
+    ? "Cerez kaydedildi (yalnizca bu tarayicida saklanir)."
+    : "Cerez temizlendi.";
+});
 
 if (navigator.hardwareConcurrency) {
   els.cpuChip.textContent = `${navigator.hardwareConcurrency} cekirdek - yerel islem`;
