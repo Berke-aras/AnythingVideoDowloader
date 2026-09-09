@@ -5,7 +5,7 @@ biçimde kaydet. **Tüm ağır iş senin bilgisayarında yapılır** — indirme
 segmentlerinin birleştirilmesi, şifre çözme ve format dönüşümü tarayıcının içinde
 WebAssembly ile çalışır. Sunucuda video işlenmez.
 
-**Canlı site:** <!-- LIVE_URL -->
+**Canlı site:** https://anything-video-downloader.netlify.app
 
 ---
 
@@ -152,8 +152,8 @@ depoya eklenmez.
 
 ## Netlify'a yayımlama
 
-Depo Netlify projesine bağlıysa `main` dalına gönderim yeterlidir. Elle yayımlamak
-için:
+Proje Netlify'da **`anything-video-downloader`** adıyla yayında. Depo bu projeye
+bağlıysa `main` dalına gönderim yeterlidir. Elle yayımlamak için:
 
 ```sh
 npx netlify deploy --build --prod
