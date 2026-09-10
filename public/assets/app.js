@@ -43,12 +43,59 @@ const els = {
   cookie: $("cookieInput"),
   cookieStatus: $("cookieStatus"),
   helperChip: $("helperChip"),
+  pasteBtn: $("pasteBtn"),
 };
 
 /** Uygulama durumu. */
 const state = { page: null, candidate: null, plan: null, controller: null };
 
 const AUDIO_FORMATS = new Set(["mp3", "m4a", "wav"]);
+
+/* ------------------------------- mobil ----------------------------- */
+
+/** Dokunmatik + dar ekran: kaydetme ve bellek davranisi burada farklidir. */
+const IS_MOBILE =
+  matchMedia("(pointer: coarse)").matches && matchMedia("(max-width: 900px)").matches;
+
+// Telefon belleği masaustune gore cok daha dar; ffmpeg.wasm sinirina daha
+// erken carpar. Bu esik asilinca kullanici uyarilir.
+const MEMORY_WARN_BYTES = IS_MOBILE ? 600 * 1024 ** 2 : 1.4 * 1024 ** 3;
+
+let wakeLock = null;
+
+/** Uzun islemlerde ekranin sonmesini (ve sekmenin askiya alinmasini) engeller. */
+async function keepAwake() {
+  try {
+    wakeLock = await navigator.wakeLock?.request("screen");
+  } catch {
+    /* tarayici desteklemiyor ya da izin vermedi; islem yine de surer */
+  }
+}
+
+function releaseAwake() {
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+}
+
+/** Ana ekrana eklenebilmesi ve hizli acilis icin servis calisanini kaydeder. */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+  navigator.serviceWorker.register("/sw.js").catch(() => {
+    /* kayit basarisizsa site normal calismaya devam eder */
+  });
+}
+
+/**
+ * Paylasim menusunden gelen adresi cikarir. Android'de baglanti cogu zaman
+ * "url" yerine "text" icinde, bazen de aciklama metnine gomulu gelir.
+ */
+function sharedUrlFromQuery(search) {
+  const params = new URLSearchParams(search);
+  const direct = params.get("url");
+  if (direct) return direct.trim();
+  const text = params.get("text") || params.get("title") || "";
+  return text.match(/https?:\/\/\S+/)?.[0] ?? "";
+}
 
 /* --------------------------- yerel yardimci ------------------------ */
 
@@ -65,6 +112,12 @@ const HELPER_URL = "http://127.0.0.1:8765";
 let helperReady = false;
 
 async function detectHelper() {
+  // Yardimci masaustu icindir (Python + yt-dlp). Telefonda hem calistirilamaz
+  // hem de bosuna bir baglanti hatasi uretir; rozeti tumden gizle.
+  if (IS_MOBILE) {
+    els.helperChip.hidden = true;
+    return;
+  }
   try {
     const res = await fetch(`${HELPER_URL}/health`, { signal: AbortSignal.timeout(1500) });
     if (!res.ok) throw new Error("saglik kontrolu basarisiz");
@@ -134,6 +187,8 @@ function safeFileName(name, ext) {
       .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "")
       .replace(/\s+/g, " ")
       .slice(0, 70)
+      // Baslik zaten bir medya uzantisiyla bitiyorsa iki kez eklenmesin.
+      .replace(/\.(mp4|m4v|mov|webm|mkv|m3u8|mpd|m4a|mp3|aac|ogg|opus|wav|flac)$/i, "")
       .replace(/^[.\s-]+|[.\s-]+$/g, "") || "video";
   return `${base}.${ext}`;
 }
@@ -503,6 +558,7 @@ async function startDownload() {
   els.downloadBtn.disabled = true;
   els.cancelBtn.hidden = false;
   els.progressCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  keepAwake();
 
   const wantsAudioOnly = AUDIO_FORMATS.has(format);
   const needsFFmpeg = format !== "original";
@@ -574,8 +630,13 @@ async function startDownload() {
       return;
     }
 
-    if (videoData.byteLength + (audioData?.byteLength || 0) > 1.4 * 1024 ** 3) {
-      log("Uyari: dosya cok buyuk, tarayici bellegi yetmeyebilir.");
+    const totalBytes = videoData.byteLength + (audioData?.byteLength || 0);
+    if (totalBytes > MEMORY_WARN_BYTES) {
+      const warning = IS_MOBILE
+        ? `Uyari: ${bytesToSize(totalBytes)} telefon bellegi icin buyuk olabilir. Islem coker ve dosya kaydedilmezse "Orijinal" bicimini sec: donusturme yapilmadan dogrudan kaydedilir.`
+        : `Uyari: ${bytesToSize(totalBytes)} icin tarayici bellegi yetmeyebilir.`;
+      log(warning);
+      setStage("FFmpeg calisiyor", warning.slice(0, 120));
     }
 
     const outExt = format === "mp4-reencode" ? "mp4" : format;
@@ -647,6 +708,7 @@ async function startDownload() {
     els.downloadBtn.disabled = false;
     els.cancelBtn.hidden = true;
     state.controller = null;
+    releaseAwake();
   }
 }
 
@@ -662,11 +724,50 @@ function finish(blob, fileName) {
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
-  link.textContent = `${fileName} dosyasini kaydet (${bytesToSize(blob.size)})`;
-  els.result.append(link);
+  link.className = "save-link";
+  link.textContent = `${fileName} (${bytesToSize(blob.size)})`;
 
-  link.click(); // tarayici indirmeyi hemen baslatsin
-  setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  if (IS_MOBILE) {
+    // Telefonlarda blob'u <a download> ile kaydetmek guvenilir degil; iOS
+    // Safari dosyayi kaydetmek yerine yeni sekmede acar. Paylasim sayfasi
+    // ("Dosyalara Kaydet", "Fotograflar", ...) dogru yoldur — ama dokunma
+    // gerektirir, bu yuzden otomatik degil bir dugmeyle tetiklenir.
+    const file = new File([blob], fileName, { type: blob.type || "video/mp4" });
+    const canShareFile = Boolean(navigator.canShare?.({ files: [file] }));
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn primary save-btn";
+    button.textContent = canShareFile
+      ? `Telefona kaydet (${bytesToSize(blob.size)})`
+      : `Dosyayi ac (${bytesToSize(blob.size)})`;
+
+    button.addEventListener("click", async () => {
+      if (canShareFile) {
+        try {
+          await navigator.share({ files: [file], title: fileName });
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return; // kullanici vazgecti
+          log(`Paylasim penceresi acilamadi: ${err.message}`);
+        }
+      }
+      link.click();
+    });
+
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = canShareFile
+      ? "Acilan menuden “Dosyalara Kaydet” veya “Videoyu Kaydet” secebilirsin."
+      : "Dosya yeni sekmede acilirsa basili tutup “Indir” de diyebilirsin.";
+
+    els.result.append(button, link, hint);
+  } else {
+    els.result.append(link);
+    link.click(); // masaustunde tarayici indirmeyi hemen baslatsin
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
 }
 
 function showError(err) {
@@ -701,8 +802,32 @@ if (navigator.hardwareConcurrency) {
   els.cpuChip.textContent = `${navigator.hardwareConcurrency} cekirdek - yerel islem`;
 }
 
-const shared = new URLSearchParams(location.search).get("url");
+// Panodan yapistirma: telefonda uzun adres yazmak zahmetli.
+if (navigator.clipboard?.readText && (IS_MOBILE || window.isSecureContext)) {
+  els.pasteBtn.hidden = false;
+  els.pasteBtn.addEventListener("click", async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      const url = text.match(/https?:\/\/\S+/)?.[0];
+      if (!url) {
+        setStatus("Panoda bir web adresi bulunamadi.", "error");
+        return;
+      }
+      els.url.value = url;
+      els.form.requestSubmit();
+    } catch {
+      setStatus("Panoya erisilemedi; adresi elle yapistirabilirsin.", "error");
+    }
+  });
+}
+
+registerServiceWorker();
+
+// Telefondan "Paylas -> AnythingVideoDownloader" ile gelindiyse adres
+// dogrudan sorgu dizesinde olur; kullaniciyi bekletmeden cozumlemeye basla.
+const shared = sharedUrlFromQuery(location.search);
 if (shared) {
   els.url.value = shared;
   els.form.requestSubmit();
+  history.replaceState(null, "", location.pathname);
 }

@@ -5,7 +5,7 @@
   "description": "Tarayicida calisan, istemci CPU'sunu kullanan video/ses indirici (Netlify)",
   "type": "module",
   "scripts": {
-    "build": "node scripts/vendor-ffmpeg.mjs",
+    "build": "node scripts/make-icons.mjs && node scripts/vendor-ffmpeg.mjs",
     "dev": "npm run build && netlify dev"
   },
   "devDependencies": {

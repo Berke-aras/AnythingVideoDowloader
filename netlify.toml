@@ -28,6 +28,23 @@
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
+# Servis calisani hep taze alinmali; yoksa eski surum sekmelerde takili kalir.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
 # FFmpeg cekirdegi surumle sabitlenmis ve degismez; uzun sure onbellekte kalsin.
 [[headers]]
   for = "/vendor/ffmpeg/*"

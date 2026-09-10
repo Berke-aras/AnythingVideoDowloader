@@ -9,6 +9,13 @@
       content="Herhangi bir sayfadaki video ve sesi bul, indir ve MP4/MP3 olarak kaydet. Tum donusturme islemi kendi bilgisayarinda, tarayicinda calisir."
     />
     <link rel="stylesheet" href="/assets/app.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AVD" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬇️</text></svg>"
@@ -45,9 +52,15 @@
                 id="urlInput"
                 type="url"
                 required
+                inputmode="url"
+                autocapitalize="off"
+                autocorrect="off"
                 placeholder="https://ornek-site.com/video/12345"
                 spellcheck="false"
               />
+              <button class="btn ghost paste-btn" id="pasteBtn" type="button" hidden>
+                Yapistir
+              </button>
               <button class="btn primary" id="resolveBtn" type="submit">Analiz et</button>
             </div>
           </label>
@@ -59,7 +72,7 @@
         </form>
         <div id="resolveStatus" class="status" hidden></div>
 
-        <details class="advanced">
+        <details class="advanced desktop-only">
           <summary>YouTube guvenilir calissin: yerel yardimci</summary>
           <p class="hint">
             YouTube bulut sunucularinin IP adreslerini bot olarak isaretliyor, bu yuzden
@@ -74,6 +87,25 @@ python3 tools/avd-helper.py</pre>
             Yardimci acikken adres cozumu yt-dlp ile, indirme de senin baglantindan yapilir;
             birlestirme ve donusturme yine tarayicida calisir. Kapatirsan site sunucudaki
             cozumleyiciye doner.
+          </p>
+        </details>
+
+        <details class="advanced mobile-only">
+          <summary>Telefonda daha iyi kullanim</summary>
+          <p class="hint">
+            <strong>Ana ekrana ekle.</strong> Tarayici menusunden ekledigin kisayol siteyi tam
+            ekran acar ve <strong>paylasim menusune</strong> yerlestirir: YouTube, Instagram ya
+            da X uygulamasinda <em>Paylas &rarr; AnythingVideoDownloader</em> dedigin anda
+            baglanti buraya gelir ve cozumleme kendiliginden baslar.
+          </p>
+          <p class="hint">
+            <strong>Ekrani kapatma.</strong> Indirme ve donusturme bu sekmede calisir; sekmeyi
+            kapatirsan islem durur. Site, islem suresince ekranin sonmesini engellemeye calisir.
+          </p>
+          <p class="hint">
+            <strong>Buyuk videolar.</strong> Telefon bellegi masaustune gore dardir. Uzun bir
+            videoda islem cokerse <strong>Orijinal</strong> bicimini sec: dosya donusturulmeden,
+            belleğe toplanmadan kaydedilir.
           </p>
         </details>
 

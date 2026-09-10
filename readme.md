@@ -110,6 +110,39 @@ düşülür.
 
 ---
 
+## Telefonda kullanım
+
+Site telefonda da tam çalışır; mobil için ayrıca şunlar var:
+
+**Ana ekrana ekle → paylaşım menüsüne girer.** Tarayıcı menüsünden siteyi ana ekrana
+eklediğinde bir web uygulaması olarak kurulur ve **paylaşım menüsünde görünür**.
+YouTube, Instagram ya da X uygulamasında *Paylaş → AnythingVideoDownloader* dediğin
+anda bağlantı siteye gelir ve çözümleme kendiliğinden başlar. (Manifest'teki
+`share_target` bunu sağlar; Android'de bağlantı çoğu zaman `url` yerine `text`
+içinde geldiği için metnin içinden de adres çıkarılır.)
+
+**Kaydetme iOS'ta farklı çalışır.** iPhone'da `<a download>` ile blob kaydetmek
+güvenilir değildir — Safari dosyayı kaydetmek yerine yeni sekmede açar. Bu yüzden
+mobilde indirme bitince otomatik kaydetme yapılmaz; **"Telefona kaydet"** düğmesi
+çıkar ve dokununca sistemin paylaşım sayfası açılır (*Dosyalara Kaydet*, *Videoyu
+Kaydet*…). Paylaşım API'si dosya desteklemiyorsa düğme klasik indirmeye düşer.
+Düğme gerekli çünkü paylaşım sayfası ancak bir dokunmayla açılabilir.
+
+**Ekran sönmesin.** İşlem sekmede çalıştığı için indirme ve dönüştürme boyunca
+Wake Lock ile ekranın sönmesi engellenir. Yine de sekmeyi kapatırsan işlem durur.
+
+**Bellek.** Telefon belleği dardır; 600 MB üzerinde uyarı verilir. İşlem çökerse
+**Orijinal** biçimi seç — dosya dönüştürülmeden kaydedilir, FFmpeg hiç indirilmez.
+
+**Küçük kolaylıklar.** Panodan **Yapıştır** düğmesi, dokunma hedeflerinin
+büyütülmesi, alanların 16 px yazı boyu (iOS'un odaklanınca sayfayı yakınlaştırmasını
+engeller) ve masaüstüne ait bölümlerin (yerel yardımcı) gizlenmesi.
+
+Yerel yardımcı telefonda çalışmaz (Python + yt-dlp gerekir), bu yüzden mobilde
+YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
+
+---
+
 ## Instagram nasıl çözülüyor?
 
 Instagram'ın kendi uçlarının hepsi anonim isteklere kapalı — test edilen üç yol da
@@ -262,6 +295,9 @@ public/                     Netlify'a yayımlanan statik site
   assets/app.js             arayüz orkestrasyonu
   assets/engine.js          parçalı indirme, HLS ve DASH ayrıştırıcıları
   assets/ffmpeg.js          ffmpeg.wasm köprüsü
+  manifest.webmanifest      ana ekrana ekleme + paylaşım hedefi
+  sw.js                     uygulama kabuğu önbelleği
+  icons/                    yapım sırasında üretilir
   vendor/ffmpeg/            yapım sırasında üretilir (depoya girmez)
 
 netlify/
@@ -270,6 +306,7 @@ netlify/
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
 tools/avd-helper.py         yerel yardımcı (yt-dlp ile çözüm + bayt aktarımı)
+scripts/make-icons.mjs      uygulama simgelerini üretir (bağımlılıksız PNG)
 scripts/vendor-ffmpeg.mjs   FFmpeg dosyalarını public/vendor'a kopyalar
 netlify.toml                yapı, fonksiyon ve başlık ayarları
 

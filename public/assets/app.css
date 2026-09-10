@@ -526,11 +526,102 @@ textarea:focus-visible {
   color: var(--accent);
 }
 
+/* Cihaza gore gorunurluk: yerel yardimci masaustune, paylasim ipuclari
+   telefona aittir. Dokunmatik + dar ekran mobil sayilir. */
+.mobile-only {
+  display: none;
+}
+
+@media (pointer: coarse) and (max-width: 900px) {
+  .desktop-only {
+    display: none;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+
+.paste-btn {
+  flex: 0 0 auto;
+}
+
+.save-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.7rem;
+  font-size: 1rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.save-link {
+  display: inline-block;
+  word-break: break-all;
+}
+
 @media (max-width: 560px) {
   .media-head {
     flex-direction: column;
   }
+
   .poster {
     width: 100%;
+  }
+
+  .site-header {
+    padding: 1.5rem 0 0.75rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  /* Dokunma hedefleri parmak icin buyutulur, alanlar tam genislik alir. */
+  .field-row {
+    gap: 0.5rem;
+  }
+
+  input[type="url"] {
+    flex: 1 1 100%;
+    font-size: 16px; /* iOS 16px altinda alana odaklaninca sayfayi yakinlastirir */
+    padding: 0.8rem 0.9rem;
+  }
+
+  .btn {
+    flex: 1 1 auto;
+    padding: 0.8rem 1rem;
+  }
+
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .candidate {
+    padding: 0.9rem;
+  }
+
+  .candidate-text span {
+    display: none; /* uzun adres kucuk ekranda yer kapliyor */
+  }
+
+  .chips {
+    gap: 0.3rem;
+  }
+
+  .chip {
+    font-size: 0.7rem;
+  }
+
+  h1 {
+    font-size: 1.05rem;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .tagline {
+    font-size: 0.82rem;
   }
 }
