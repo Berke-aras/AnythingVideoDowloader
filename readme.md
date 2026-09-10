@@ -86,7 +86,9 @@ düşülür.
 | **Vimeo** | Çalışıyor | Oynatıcı yapılandırması (HLS, DASH, doğrudan MP4) |
 | **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
 | **Instagram** | Çalışıyor | Instagram'ın kendi uçları oturum ister; herkese açık gönderiler için genel bir embed servisinin yönlendirmesinden CDN adresi alınır |
-| **Reddit** | Pratikte hayır | Veri merkezi IP'lerini `403` ile reddediyor |
+| **Reddit** | Çalışıyor | Reddit'in sayfası engellense de medya sunucusu `v.redd.it` açık; video kimliği alınıp tüm kaliteleri içeren HLS/DASH listesi kuruluyor |
+| **Yetişkin siteleri** | Çalışıyor | PornHub, XVideos, XHamster ve benzerleri genişletilmiş genel çözümleyiciyle: oynatıcı yapılandırması (`mediaDefinitions`, `setVideoUrl*`, `window.initials`) okunuyor |
+| **Rastgele siteler** | Genellikle çalışıyor | `og:video`, JSON-LD, HTML5 `<video>`, JW Player / Video.js `sources`, gömülü oynatıcılar ve son çare metin taraması |
 
 ### Biçimler ve protokoller
 
@@ -95,6 +97,7 @@ düşülür.
 - **DASH** (`.mpd`) — `SegmentTemplate` (`$Number$` / `$Time$` / `SegmentTimeline`), `SegmentList`, `SegmentBase`
 - **Ayrı video + ses akışları** — iki dosya paralel indirilip tarayıcıda birleştirilir
 - **Gömülü videolu sayfalar** — `og:video`, JSON-LD, HTML5 `<video>`, iframe içindeki oynatıcılar
+- **Oynatıcı yapılandırmaları** — JW Player / Video.js `sources: [{file}]`, `setVideoUrlHigh()`, `mediaDefinitions`, `window.initials` gibi JS içine gömülü adresler
 
 ### Çıktı biçimleri
 
@@ -140,6 +143,27 @@ engeller) ve masaüstüne ait bölümlerin (yerel yardımcı) gizlenmesi.
 
 Yerel yardımcı telefonda çalışmaz (Python + yt-dlp gerekir), bu yüzden mobilde
 YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
+
+---
+
+## Rastgele sitelerde nasıl davranıyor?
+
+Bilinen bir platform değilse çözümleyici sayfayı sırayla şu yollardan tarar ve ilk
+güvenilir sonuçta durur:
+
+1. `og:video` / `twitter:player:stream` meta etiketleri
+2. JSON-LD `contentUrl`
+3. HTML5 `<video>` / `<source>` etiketleri
+4. **Oynatıcı yapılandırmaları** — JW Player, Video.js ve benzerlerinin JS içindeki
+   `file` / `src` / `videoUrl` / `hlsUrl` alanları, `setVideoUrlHigh(...)` çağrıları
+5. Gömülü oynatıcılar (`<iframe>`, bir seviye)
+6. Son çare: tüm belgede medya uzantısı taraması
+
+**Gürültü elemesi:** son çare taraması yalnızca üstteki yollardan hiçbiri sonuç
+vermediğinde kullanılır. Aksi hâlde öneri kutularındaki başka videoların önizlemeleri
+listeye dolardı — bir sitede 40 aday çıkıp yalnızca 2'si gerçek videoyken bunu ölçüp
+düzelttik. Ayrıca önizleme/küçük resim adresleri (`/thumbs/`, `preview.mp4`,
+`526x298...`, `sprite`) her durumda elenir.
 
 ---
 
@@ -275,8 +299,9 @@ Bunlar eksiklik değil, yöntemin sınırları:
   Hiçbir istemci tarafı yöntem bunu aşamaz.
 - **Gizli hesaplardaki içerik.** Instagram'ın herkese açık gönderileri çözülüyor ama
   gizli bir hesabın gönderisi için o hesaba erişimi olan bir çerez gerekir.
-- **Reddit** — veri merkezi IP'lerinden gelen istekleri (Netlify dâhil) `403` ile
-  reddediyor; çözümleyici var ama pratikte çoğu zaman boş döner.
+- **Reddit'in kendi API'si** — veri merkezi IP'lerini reddediyor. Video indirmek
+  için gerek yok (medya sunucusu açık), ama gönderi başlığı bazen adresteki
+  slug'dan türetilir.
 - **Çok büyük dosyalar.** Dönüştürme tarayıcı belleğinde yapıldığı için ~1,5 GB
   üzerindeki videolarda bellek yetmeyebilir. Bu durumda **Orijinal** biçimini seç:
   dosya belleğe alınmadan doğrudan kaydedilir.

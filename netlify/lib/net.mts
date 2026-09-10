@@ -6,7 +6,6 @@
  */
 
 import { lookup } from "node:dns/promises";
-import { ProxyAgent } from "undici";
 
 export const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
@@ -120,7 +119,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
  */
 const DEFAULT_PROXY_HOSTS = ["youtube.com", "youtu.be", "googlevideo.com", "ytimg.com"];
 
-let cachedAgent: { key: string; agent: ProxyAgent } | null = null;
+let cachedAgent: { key: string; agent: Promise<unknown> } | null = null;
 
 function proxySettings(): { url: string; hosts: string[] } | null {
   const url = process.env.UPSTREAM_PROXY?.trim();
@@ -135,8 +134,12 @@ function proxySettings(): { url: string; hosts: string[] } | null {
 /**
  * Hedef, proxy kapsamindaysa kullanilacak undici dispatcher'ini doner.
  * Yapilandirma yoksa undefined doner ve istek dogrudan gider.
+ *
+ * undici bilerek tembel yukleniyor: modul yuklendigi anda kendi global
+ * dispatcher'ini kuruyor ve ortamda tanimli proxy ayarlarini devre disi
+ * birakiyor. Yalnizca UPSTREAM_PROXY tanimliyken devreye girmesi gerekiyor.
  */
-export function dispatcherFor(target: URL): ProxyAgent | undefined {
+export async function dispatcherFor(target: URL): Promise<unknown | undefined> {
   const settings = proxySettings();
   if (!settings) return undefined;
 
@@ -147,7 +150,10 @@ export function dispatcherFor(target: URL): ProxyAgent | undefined {
   if (!inScope) return undefined;
 
   if (cachedAgent?.key !== settings.url) {
-    cachedAgent = { key: settings.url, agent: new ProxyAgent(settings.url) };
+    cachedAgent = {
+      key: settings.url,
+      agent: import("undici").then((undici) => new undici.ProxyAgent(settings.url)),
+    };
   }
   return cachedAgent.agent;
 }

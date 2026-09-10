@@ -53,6 +53,7 @@ const SOURCE_RANK: Record<string, number> = {
   "json-ld": 1,
   link: 1,
   html5: 2,
+  oynatici: 2,
   tarama: 3,
 };
 
@@ -142,7 +143,7 @@ async function fetchText(url: URL, timeoutMs: number, options: FetchOptions = {}
     headers,
     redirect: "follow",
     signal: AbortSignal.timeout(timeoutMs),
-    dispatcher: dispatcherFor(url),
+    dispatcher: await dispatcherFor(url),
   } as RequestInit);
   const type = res.headers.get("content-type") || "";
   const reader = res.body?.getReader();
@@ -164,6 +165,23 @@ async function fetchText(url: URL, timeoutMs: number, options: FetchOptions = {}
   return { text, type, finalUrl: res.url || url.toString(), status: res.status };
 }
 
+/**
+ * Onizleme, kucuk resim ve sablon adresleri: bunlar oynatilacak video degil,
+ * sayfadaki oneri kutularinin ustune gelince oynayan kisa kliplerdir. Ozellikle
+ * uzun oneri listeleri olan sitelerde aday listesini bogarlar.
+ */
+const PREVIEW_RE = new RegExp(
+  [
+    "/(?:thumbs?|thumbnails?|preview(?:s)?|gifs?|sprites?|pics|posters?)/", // klasor adlari
+    "\\bpreview[-_.]", // preview.mp4, preview_1.mp4
+    "\\b\\d{2,3}x\\d{2,3}\\.", // 526x298.94.3.5.t.mp4 gibi kucuk kareler
+    "\\.t\\.(?:av1\\.)?mp4$", // xhamster onizleme adlandirmasi
+    "_TPL_", // doldurulmamis sablon
+    "sprite",
+  ].join("|"),
+  "i",
+);
+
 function collect(
   out: Map<string, Candidate>,
   base: string,
@@ -177,6 +195,7 @@ function collect(
   const ext = extOf(abs);
   if (!new RegExp(`^(?:${MEDIA_EXT})$`).test(ext)) return;
   if (ext === "ts") return; // tek segment; tam video degil
+  if (PREVIEW_RE.test(abs)) return;
   if (out.has(abs) || out.size >= MAX_CANDIDATES) return;
   const kind = kindOf(abs);
   out.set(abs, {
@@ -223,6 +242,26 @@ function extractFromDocument(text: string, base: string, out: Map<string, Candid
     for (const m of block.match(/"(?:contentUrl|embedUrl)"\s*:\s*"([^"]+)"/g) || []) {
       collect(out, base, m.split('"')[3], "json-ld");
     }
+  }
+
+  // Oynatici yapilandirmalari: bircok site medya adresini isaretlemede degil,
+  // JS icindeki bir nesnede tutar. Yaygin anahtarlar ve cagri bicimleri:
+  //   JW Player / Video.js : sources: [{ file: "..." }], { src: "..." }
+  //   XVideos              : html5player.setVideoUrlHigh('...'), setVideoHLS('...')
+  //   Aylo (PornHub ailesi): "mediaDefinitions": [{ "videoUrl": "..." }]
+  //   XHamster             : window.initials -> sources.mp4 / sources.hls
+  // collect() zaten yalnizca medya uzantisi olanlari kabul ettigi icin bu
+  // genis tarama yanlis pozitif uretmez.
+  for (const m of decoded.matchAll(
+    /"(?:file|src|url|videoUrl|video_url|videoUrlHigh|hlsUrl|hls_url|hlsManifestUrl|dashUrl|dash_url|playlist|playlist_url|manifest|manifest_url|stream_url|streamUrl|contentUrl|source|fallback_url)"\s*:\s*"((?:https?:)?\/\/[^"\\]{10,})"/gi,
+  )) {
+    collect(out, base, m[1], "oynatici");
+  }
+
+  for (const m of decoded.matchAll(
+    /(?:setVideoUrl\w*|setVideoHLS|setVideoDASH|loadVideo|playerSource)\s*\(\s*['"]((?:https?:)?\/\/[^'"]{10,})['"]/gi,
+  )) {
+    collect(out, base, m[1], "oynatici");
   }
 
   for (const m of decoded.match(MEDIA_URL_RE) || []) {
@@ -683,6 +722,89 @@ async function instagramViaEmbedService(shortcode: string): Promise<string | nul
   return null;
 }
 
+/* --------------------------------- Reddit --------------------------------- */
+
+/**
+ * Reddit'in kendi uclari (API, .json, HTML) veri merkezi IP'lerini reddediyor;
+ * bu sunucudan gelen istekler bos bir sayfa aliyor. Ancak medya sunucusu
+ * v.redd.it ayni kisiti uygulamiyor: video kimligi bilinirse tum kalitelerin
+ * bulundugu HLS ve DASH listeleri dogrudan indirilebiliyor.
+ *
+ * Kimlik, sohbet uygulamalarinin Reddit onizlemesi icin kullandigi acik bir
+ * embed servisinden aliniyor. O servis yalnizca kimligi verir; video baytlari
+ * uzerinden gecmez, tarayici dogrudan v.redd.it'ten indirir.
+ */
+const REDDIT_EMBED_SERVICES = ["https://vxreddit.com", "https://rxddit.com"];
+
+function redditVideoId(text: string): string | null {
+  return text.match(/v\.redd\.it(?:%2F|\/)([A-Za-z0-9]{8,})/i)?.[1] ?? null;
+}
+
+async function redditExtract(pageUrl: URL, out: Map<string, Candidate>, cookie?: string) {
+  let videoId: string | null = null;
+  let title = "";
+
+  // 1) Adres zaten dogrudan medya sunucusunu gosteriyor olabilir.
+  if (/(^|\.)redd\.it$/.test(pageUrl.hostname)) {
+    videoId = pageUrl.pathname.split("/").filter(Boolean)[0] ?? null;
+  }
+
+  // 2) Reddit'in kendisi bu sunucuya sonuc verirse oradan al (cerez varsa calisir).
+  if (!videoId) {
+    try {
+      const { text } = await fetchText(pageUrl, 6000, { cookie });
+      videoId = redditVideoId(unescapeAll(text));
+      title = titleOf(text);
+    } catch {
+      /* beklenen: veri merkezi IP'si reddedildi */
+    }
+  }
+
+  // 3) Acik embed servisleri.
+  if (!videoId) {
+    for (const service of REDDIT_EMBED_SERVICES) {
+      try {
+        const { text } = await fetchText(new URL(service + pageUrl.pathname), 8000);
+        const decoded = unescapeAll(text);
+        videoId = redditVideoId(decoded);
+        title ||= decoded.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ?? "";
+        if (videoId) break;
+      } catch {
+        /* sonraki servis denenir */
+      }
+    }
+  }
+
+  if (!videoId) {
+    throw new Error("Gonderideki video kimligi bulunamadi (Reddit'te barindirilan bir video mu?).");
+  }
+
+  // HLS once: ana liste tum kaliteleri ve ayri ses parcasini iceriyor,
+  // istemci kaliteyi secip birlestirmeyi kendisi yapiyor.
+  addCandidate(out, {
+    url: `https://v.redd.it/${videoId}/HLSPlaylist.m3u8`,
+    kind: "hls",
+    ext: "m3u8",
+    label: "Tum kaliteler - HLS, kalite secilebilir",
+  });
+  addCandidate(out, {
+    url: `https://v.redd.it/${videoId}/DASHPlaylist.mpd`,
+    kind: "dash",
+    ext: "mpd",
+    label: "Tum kaliteler - DASH",
+  });
+
+  // Reddit'in stub sayfasi genel site basligini veriyor; gonderi adresindeki
+  // slug daha aciklayici ve bedava.
+  if (!title || /^reddit\b/i.test(title)) {
+    const slug = pageUrl.pathname.match(/\/comments\/[a-z0-9]+\/([^/]+)/i)?.[1];
+    if (slug) {
+      title = decodeURIComponent(slug).replace(/[_+]/g, " ").replace(/\s+/g, " ").trim();
+    }
+  }
+  return title;
+}
+
 /* ----------------------- siteye ozel cozumleyiciler ----------------------- */
 
 /**
@@ -764,13 +886,10 @@ const SITE_HELPERS: Array<{
     },
   },
   {
-    // Reddit medya adresini yalnizca JSON ucunda verir.
-    match: /(^|\.)reddit\.com$/,
-    run: async (pageUrl, out, cookie) => {
-      const jsonUrl = new URL(pageUrl.toString().split("?")[0].replace(/\/$/, "") + ".json");
-      const { text } = await fetchText(jsonUrl, 5000, { cookie });
-      extractFromDocument(text, jsonUrl.toString(), out);
-    },
+    // Reddit: veri merkezi IP'lerini reddediyor, ama medya sunucusu acik.
+    match: /(^|\.)reddit\.com$|(^|\.)redd\.it$/,
+    authoritative: true,
+    run: (pageUrl, out, cookie) => redditExtract(pageUrl, out, cookie),
   },
 ];
 
@@ -925,7 +1044,13 @@ export default async (req: Request, _context: Context) => {
 
   const kindRank = (c: Candidate) =>
     c.kind === "hls" ? 0 : c.kind === "pair" ? 1 : c.kind === "dash" ? 2 : c.kind === "video" ? 3 : 4;
-  const candidates = [...out.values()].sort(
+
+  // Ham metin taramasi (rank 3) son caredir: isaretlemeden ya da oynatici
+  // yapilandirmasindan gelen bir sonuc varsa, tarama sonuclari yalnizca
+  // gurultu olur (oneri kutularindaki baska videolar). Onlari ele.
+  const all = [...out.values()];
+  const confident = all.filter((c) => c.rank < 3);
+  const candidates = (confident.length ? confident : all).sort(
     (a, b) => a.rank - b.rank || kindRank(a) - kindRank(b),
   );
 

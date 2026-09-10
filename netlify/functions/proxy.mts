@@ -63,7 +63,7 @@ export default async (req: Request, _context: Context) => {
       method: req.method,
       headers,
       redirect: "follow",
-      dispatcher: dispatcherFor(safe),
+      dispatcher: await dispatcherFor(safe),
     } as RequestInit);
   } catch (err) {
     return new Response(`Kaynak adrese ulasilamadi: ${(err as Error).message}`, {
