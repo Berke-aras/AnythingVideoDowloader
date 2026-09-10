@@ -761,10 +761,15 @@ async function redditExtract(pageUrl: URL, out: Map<string, Candidate>, cookie?:
   }
 
   // 3) Acik embed servisleri.
+  //    Bot kimligi sart: tarayici kimligiyle gelen istegi Reddit'e geri
+  //    yonlendiriyorlar, orada da bulut IP'si engelleniyor. Bot kimliginde ise
+  //    onizleme icin uretilmis og etiketlerini dogrudan veriyorlar.
   if (!videoId) {
     for (const service of REDDIT_EMBED_SERVICES) {
       try {
-        const { text } = await fetchText(new URL(service + pageUrl.pathname), 8000);
+        const { text } = await fetchText(new URL(service + pageUrl.pathname), 8000, {
+          headers: { "User-Agent": "TelegramBot (like TwitterBot)" },
+        });
         const decoded = unescapeAll(text);
         videoId = redditVideoId(decoded);
         title ||= decoded.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ?? "";
