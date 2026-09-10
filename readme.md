@@ -87,7 +87,7 @@ düşülür.
 | **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
 | **Instagram** | Çalışıyor | Instagram'ın kendi uçları oturum ister; herkese açık gönderiler için genel bir embed servisinin yönlendirmesinden CDN adresi alınır |
 | **Reddit** | Çalışıyor | Reddit'in sayfası engellense de medya sunucusu `v.redd.it` açık; video kimliği alınıp tüm kaliteleri içeren HLS/DASH listesi kuruluyor |
-| **Yetişkin siteleri** | Çalışıyor | PornHub, XVideos, XHamster ve benzerleri genişletilmiş genel çözümleyiciyle: oynatıcı yapılandırması (`mediaDefinitions`, `setVideoUrl*`, `window.initials`) okunuyor |
+| **Yetişkin siteleri** | Çalışıyor | PornHub, XVideos, XHamster, Erome test edildi. Ayrı kod yok: genişletilmiş genel çözümleyici oynatıcı yapılandırmasını (`mediaDefinitions`, `setVideoUrl*`, `window.initials`) ya da `<source>` etiketlerini okuyor |
 | **Rastgele siteler** | Genellikle çalışıyor | `og:video`, JSON-LD, HTML5 `<video>`, JW Player / Video.js `sources`, gömülü oynatıcılar ve son çare metin taraması |
 
 ### Biçimler ve protokoller
