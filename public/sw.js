@@ -7,7 +7,8 @@
  * (Range istekleri ve buyuk govdeler onbelleklenmemeli).
  */
 
-const CACHE = "avd-shell-v1";
+// Surum degisince eski onbellek tumden silinir (activate icinde).
+const CACHE = "avd-shell-v2";
 const SHELL = [
   "/",
   "/index.html",
@@ -55,19 +56,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Kabuk dosyalari: onbellekten hizlica ver, arka planda tazele.
+  // Kabuk dosyalari: ONCE AG, sonra onbellek.
+  //
+  // Once onbellek vermek daha hizli gorunur ama yanlistir: bir duzeltme
+  // yayimlandiginda kullanici eski CSS/JS ile kalir ve ancak ikinci acilista
+  // yenisini gorur. Site zaten ag olmadan is yapamadigi icin dogru davranis,
+  // agi denemek ve yalnizca cevrimdisiyken onbellege dusmektir.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached ?? Response.error());
-      return cached ?? network;
-    }),
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request).then((cached) => cached ?? Response.error())),
   );
 });

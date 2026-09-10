@@ -77,9 +77,26 @@ function releaseAwake() {
   wakeLock = null;
 }
 
-/** Ana ekrana eklenebilmesi ve hizli acilis icin servis calisanini kaydeder. */
+/**
+ * Ana ekrana eklenebilmesi ve hizli acilis icin servis calisanini kaydeder.
+ *
+ * Yeni bir surum devreye girdiginde sayfa bir kez tazelenir: aksi halde acik
+ * sekme, eski servis calisaninin verdigi eski CSS/JS ile calismaya devam eder
+ * ve yayimlanan duzeltmeler kullaniciya ancak sonraki acilista ulasir.
+ */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloaded = false;
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // Ilk kurulumda da tetiklenir; orada tazelemeye gerek yok.
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+
   navigator.serviceWorker.register("/sw.js").catch(() => {
     /* kayit basarisizsa site normal calismaya devam eder */
   });
