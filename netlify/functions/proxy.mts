@@ -15,6 +15,8 @@ import {
   corsHeaders,
   dispatcherFor,
   HttpError,
+  mergeCookies,
+  siteCookieFor,
   upstreamHeaders,
 } from "../lib/net.mjs";
 
@@ -53,8 +55,21 @@ export default async (req: Request, _context: Context) => {
   // Content-Length ile aktarilan byte sayisi birbirini tutmaz, dosya kirpilir.
   // Medya dosyalari zaten sikistirilmis oldugundan kayip da olmaz.
   headers["Accept-Encoding"] = "identity";
-  // Kullanicinin kendi oturum cerezi (varsa) yalnizca hedef siteye iletilir.
-  const cookie = req.headers.get("x-site-cookie");
+  // Yas kapisi cerezleri (varsa) ve kullanicinin kendi oturum cerezi yalnizca
+  // hedef siteye iletilir. Bazi siteler medya baytlarini da yalnizca onay
+  // cerezi varken veriyor, bu yuzden cozumlemede oldugu gibi burada da lazim.
+  const ref = params.get("ref");
+  let refHost = "";
+  try {
+    refHost = ref ? new URL(ref).hostname : "";
+  } catch {
+    /* gecersiz referer yok sayilir */
+  }
+  const cookie = mergeCookies(
+    siteCookieFor(safe.hostname),
+    refHost ? siteCookieFor(refHost) : "",
+    req.headers.get("x-site-cookie"),
+  );
   if (cookie) headers.Cookie = cookie;
 
   let upstream: Response;

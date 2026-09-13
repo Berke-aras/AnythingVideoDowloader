@@ -160,11 +160,86 @@ export async function dispatcherFor(target: URL): Promise<unknown | undefined> {
 
 /** Hedef siteye tarayici gibi gorunen istek basliklari uretir. */
 export function upstreamHeaders(target: URL, referer?: string | null): Record<string, string> {
-  return {
+  const ref = referer || `${target.protocol}//${target.host}/`;
+  let origin = "";
+  try {
+    origin = new URL(ref).origin;
+  } catch {
+    /* referer bozuksa Origin gonderilmez */
+  }
+  const headers: Record<string, string> = {
     "User-Agent": BROWSER_UA,
     Accept: "*/*",
-    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-    Referer: referer || `${target.protocol}//${target.host}/`,
-    Origin: `${target.protocol}//${target.host}`,
+    "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
+    Referer: ref,
+    "Sec-Fetch-Dest": "video",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "cross-site",
   };
+  // Origin, sayfanin kendi adresinden turetilir. Daha once hedefin kendi
+  // adresi yaziliyordu; hotlink korumasi olan CDN'ler bunu tutarsiz bulup
+  // 403 donduruyordu.
+  if (origin && origin !== `${target.protocol}//${target.host}`) headers.Origin = origin;
+  return headers;
+}
+
+/* ---------------------------- yas kapisi cerezleri ---------------------------- */
+
+/**
+ * Yetiskin icerikli siteler (ve bazi haber siteleri) videoyu yalnizca "18
+ * yasindan buyugum" onayindan sonra sayfaya koyar. Onay bir cerezle tutulur;
+ * cerez yoksa sunucuya bos bir uyari sayfasi doner ve icinde hic medya adresi
+ * bulunmaz. Asagidaki cerezler tarayicida "giris" dugmesine basildiginda
+ * olusan cerezlerin aynisidir: oturum, hesap ya da kisisel veri icermezler.
+ */
+const SITE_COOKIES: Array<[RegExp, string]> = [
+  // Aylo ailesi: PornHub, RedTube, YouPorn, Tube8, Thumbzilla
+  [
+    /(^|\.)pornhub(premium)?\.(com|org|net)$/,
+    "age_verified=1; accessAgeDisclaimerPH=1; accessAgeDisclaimerUK=1; accessPH=1; adblock_message_displayed=1; cookiesBannerSeen=1; platform=pc; hasVisited=1",
+  ],
+  [
+    /(^|\.)(redtube|youporn|tube8|thumbzilla)\.com$/,
+    "age_verified=1; accessAgeDisclaimerET=1; accessAgeDisclaimerUK=1; platform=pc; hasVisited=1",
+  ],
+  // XHamster ve alan adi kopyalari (xhamster2.com, xhamster42.desi ...)
+  [/(^|\.)xhamster\w*\.(com|desi|one)$/, "age_verified=1; platform=pc; lang=en"],
+  // XVideos / XNXX: masaustu surumu ve yas onayi
+  [/(^|\.)(xvideos\w*|xnxx\w*)\.(com|es)$/, "age_verified=1; platform=pc; ts=1"],
+  [/(^|\.)spankbang\.(com|party)$/, "age_pass=1; country=US; ui_lang=en"],
+  [/(^|\.)eporner\.com$/, "age_verified=1; dwhsh=1"],
+  [/(^|\.)(txxx|upornia|hclips|hotmovs|porntrex|vjav)\.com$/, "age_verified=1; kt_is_visited=1"],
+  [/(^|\.)(motherless|beeg|tnaflix|empflix|drtuber|nuvid|sunporno)\.com$/, "age_verified=1"],
+];
+
+/**
+ * Bilinmeyen siteler icin genel yas kapisi cerezleri. Sayfa ilk denemede
+ * medyasiz dondugunde ikinci deneme bunlarla yapilir: farkli sitelerin
+ * kullandigi yaygin onay cerez adlarinin birlesimidir.
+ */
+export const GENERIC_AGE_COOKIE =
+  "age_verified=1; ageVerified=1; age_gate=1; ageGate=1; over18=1; is_adult=1; adult=1; " +
+  "confirmed=1; ageConfirmed=1; disclaimer=1; warning=1; platform=pc; lang=en; hasVisited=1";
+
+/** Hedef alan adi icin otomatik gonderilecek cerezler (yoksa bos dizi). */
+export function siteCookieFor(host: string): string {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  for (const [match, cookie] of SITE_COOKIES) {
+    if (match.test(h)) return cookie;
+  }
+  return "";
+}
+
+/** Iki cerez dizisini, ayni ada sahip olanlarda ikinciyi ustun tutarak birlestirir. */
+export function mergeCookies(...parts: Array<string | null | undefined>): string {
+  const map = new Map<string, string>();
+  for (const part of parts) {
+    for (const piece of (part ?? "").split(";")) {
+      const trimmed = piece.trim();
+      if (!trimmed) continue;
+      const name = trimmed.split("=")[0].trim().toLowerCase();
+      if (name) map.set(name, trimmed);
+    }
+  }
+  return [...map.values()].join("; ");
 }
