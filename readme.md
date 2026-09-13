@@ -49,7 +49,8 @@ Bu sürüm işi tersine çevirir:
 
 **1. Çözümleme (sunucu, milisaniyeler).** `/api/resolve` önce adresin bilinen bir
 platforma ait olup olmadığına bakar ve varsa o platformun kendi oynatıcı ucunu kullanır
-(YouTube, X, Instagram, Vimeo, Dailymotion, Reddit). Değilse sayfanın HTML'ini okur:
+(YouTube, X, Instagram, Vimeo, Dailymotion, Reddit, PornHub ailesi, XHamster,
+SpankBang, Eporner). Değilse sayfanın HTML'ini okur:
 `og:video` / `twitter:player:stream` meta etiketleri, JSON-LD `contentUrl`, `<video>` ve
 `<source>` etiketleri, `application/x-mpegURL` bağlantıları ve son çare olarak tüm
 belgede (JSON kaçış dizileri çözülmüş hâlde) medya uzantısı taraması. Hâlâ bulunamazsa
@@ -87,8 +88,9 @@ düşülür.
 | **Dailymotion** | Kısmen | Oynatıcı üst verisi; bazı videolarda akış listesi boş dönüyor |
 | **Instagram** | Çalışıyor | Instagram'ın kendi uçları oturum ister; herkese açık gönderiler için genel bir embed servisinin yönlendirmesinden CDN adresi alınır |
 | **Reddit** | Çalışıyor | Reddit'in sayfası engellense de medya sunucusu `v.redd.it` açık; video kimliği alınıp tüm kaliteleri içeren HLS/DASH listesi kuruluyor |
-| **Yetişkin siteleri** | Çalışıyor | PornHub, XVideos, XHamster, Erome test edildi. Ayrı kod yok: genişletilmiş genel çözümleyici oynatıcı yapılandırmasını (`mediaDefinitions`, `setVideoUrl*`, `window.initials`) ya da `<source>` etiketlerini okuyor |
-| **Rastgele siteler** | Genellikle çalışıyor | `og:video`, JSON-LD, HTML5 `<video>`, JW Player / Video.js `sources`, gömülü oynatıcılar ve son çare metin taraması |
+| **Yetişkin siteleri** | Çalışıyor | Yaş kapısı çerezleri otomatik gönderilir. PornHub / RedTube / YouPorn / Tube8 için `mediaDefinitions`, XHamster için `window.initials`, SpankBang için `stream_data`, Eporner için imzalı XHR ucu; XVideos, XNXX, TNAFlix ve **KVS motorlu yüzlerce tüp sitesi** genel yoldan. Canlı test: PornHub, RedTube, XVideos, XHamster, TNAFlix, Eporner, KVS demo |
+| **KVS motorlu siteler** | Çalışıyor | Yüzlerce tüp sitesinin ortak altyapısı. `flashvars` içindeki adres `function/0/...` ile karıştırılmışsa `license_code`'dan üretilen anahtarla açılır (oynatıcının yaptığı işlemin aynısı) |
+| **Rastgele siteler** | Genellikle çalışıyor | `og:video`, JSON-LD, HTML5 `<video>`, JW Player / Video.js `sources`, gömülü oynatıcılar, uzantısız adreslerin içerik türüyle doğrulanması ve son çare metin taraması |
 
 ### Biçimler ve protokoller
 
@@ -155,15 +157,53 @@ güvenilir sonuçta durur:
 2. JSON-LD `contentUrl`
 3. HTML5 `<video>` / `<source>` etiketleri
 4. **Oynatıcı yapılandırmaları** — JW Player, Video.js ve benzerlerinin JS içindeki
-   `file` / `src` / `videoUrl` / `hlsUrl` alanları, `setVideoUrlHigh(...)` çağrıları
-5. Gömülü oynatıcılar (`<iframe>`, bir seviye)
-6. Son çare: tüm belgede medya uzantısı taraması
+   `file` / `src` / `videoUrl` / `hlsUrl` / `video_alt_url` / `240p` alanları
+   (anahtar ve değer tek ya da çift tırnaklı olabilir), `sources: [...]` dizileri,
+   `setVideoUrlHigh(...)` çağrıları
+5. **KVS motoru** — `flashvars` nesnesi varsa tüm kaliteleri, gerekiyorsa adresin
+   karıştırılmış bölümünü çözerek
+6. **Yaş kapısı** — sayfa medyasız döndüyse ve içerik "18 yaşından büyük müsün"
+   sorusuna benziyorsa, onay çerezleriyle bir kez daha istenir
+7. Gömülü oynatıcılar (`<iframe>`, bir seviye) — artık yalnızca hiç aday yokken
+   değil, **güvenilir** aday yokken de takip edilir; birçok sitede sayfada sadece
+   önizleme klibi olur, asıl video iframe içindedir
+8. **Uzantısız adreslerin doğrulanması** — oynatıcı yapılandırmasından çıkan ama
+   dosya uzantısı olmayan adresler (tokenli CDN uçları, `/get_file/...`, `/master`)
+   tek baytlık bir istekle yoklanır; içerik türü `video/…`, `audio/…` ya da
+   `mpegurl` ise listeye alınır
+9. Son çare: tüm belgede medya uzantısı taraması
 
 **Gürültü elemesi:** son çare taraması yalnızca üstteki yollardan hiçbiri sonuç
 vermediğinde kullanılır. Aksi hâlde öneri kutularındaki başka videoların önizlemeleri
 listeye dolardı — bir sitede 40 aday çıkıp yalnızca 2'si gerçek videoyken bunu ölçüp
-düzelttik. Ayrıca önizleme/küçük resim adresleri (`/thumbs/`, `preview.mp4`,
+düzelttik. Tek istisna taramadan çıkan **HLS/DASH listeleri**: bunlar asla önizleme
+klibi olmaz ve bazı sitelerde asıl kaynak yalnızca orada görünür, bu yüzden listede
+kalırlar. Ayrıca önizleme/küçük resim adresleri (`/thumbs/`, `preview.mp4`,
 `526x298...`, `sprite`) her durumda elenir.
+
+---
+
+## Yaş kapısı olan siteler nasıl çözülüyor?
+
+Yetişkin içerikli siteler videoyu yalnızca "18 yaşından büyüğüm" onayından sonra
+sayfaya koyar. Onay bir çerezde tutulur; çerez yoksa sunucuya gelen sayfa boştur ve
+içinde hiç medya adresi bulunmaz — eskiden bu sitelerde "video bulunamadı" denmesinin
+sebebi buydu.
+
+Çözüm iki katmanlı:
+
+1. **Bilinen siteler** (`netlify/lib/net.mts` içindeki liste) için onay çerezleri
+   isteğe doğrudan eklenir — tarayıcıda "giriş" düğmesine basınca oluşan çerezlerin
+   aynısı. Oturum, hesap ya da kişisel veri içermezler.
+2. **Listede olmayan siteler** için sayfa önce çerezsiz istenir; medya bulunamaz ve
+   sayfa bir yaş kapısına benziyorsa genel onay çerezleriyle bir kez daha denenir.
+
+Aynı çerezler `/api/proxy` üzerinden de gider: bazı siteler yalnızca sayfayı değil,
+video baytlarını da onay çerezi olmadan vermiyor.
+
+**Sıcak bağlantı koruması.** Medya isteklerinde `Referer` sayfanın adresi, `Origin`
+da o adresin kaynağı olarak gönderilir (eskiden `Origin` hedefin kendi adresiydi ve
+bazı CDN'ler bunu tutarsız bulup `403` dönüyordu).
 
 ---
 
