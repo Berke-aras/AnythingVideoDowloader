@@ -152,7 +152,7 @@ YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
 
 iPhone'da paylaşım menüsünden indirmek için hazır kestirme **iCloud bağlantısıyla** tek
 dokunuşta kurulur (Apple imzaladığı için uyarı çıkmaz):
-**[Videoyu İndir](https://www.icloud.com/shortcuts/b548ea027a524c2a835073a5d565cbcc)**.
+**[Videoyu İndir](https://www.icloud.com/shortcuts/f1aa3bfd0ccd424082d25e427d6a54d5)**.
 Kendi alan adın için kendi kestirmeni kurmak istersen **üç eylem** yetiyor; adım adım tarif ve
 kopyalanabilir adresler **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
 sayfasında.
