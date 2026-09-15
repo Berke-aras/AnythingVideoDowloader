@@ -50,9 +50,9 @@ function wireInstallButtons() {
   const note = $("installNote");
   if (note && !isApple) {
     note.insertAdjacentHTML(
-      "beforeend",
-      " <strong>Bu cihaz iPhone degil:</strong> dugme kisayol dosyasini indirir; dosyayi " +
-        "telefonuna gonderip orada acman gerekir.",
+      "afterbegin",
+      "<p><strong>Bu cihaz iPhone degil:</strong> dugme kestirme dosyasini indirir. Kurulum " +
+        "ancak telefonda yapilabilir — sayfayi iPhone'da ac ya da dosyayi telefonuna gonder.</p>",
     );
   }
 }

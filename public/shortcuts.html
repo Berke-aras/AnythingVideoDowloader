@@ -129,6 +129,12 @@
         text-align: center;
         flex: 1 1 15rem;
       }
+      .fix-steps {
+        margin: 0.5rem 0;
+        padding-left: 1.2rem;
+        display: grid;
+        gap: 0.4rem;
+      }
     </style>
   </head>
   <body>
@@ -155,7 +161,7 @@
       <section class="card install-card">
         <h2 class="section-title">Tek dokunusla kur</h2>
         <p class="hint">
-          Asagidaki dugme kisayolu <strong>hazir halde</strong> Kisayollar uygulamasina yukler:
+          Asagidaki dugme kisayolu <strong>hazir halde</strong> Kestirmeler (Shortcuts) uygulamasina yukler:
           eylemleri elle dizmen gerekmez. iPhone'dan ac, dokun, acilan ekranda
           <strong>Kisayol Ekle</strong> de.
         </p>
@@ -173,13 +179,32 @@
           Fotograflar'a kaydeder; birlestirme gerektiren bir video ise nedenini bildirir ve
           adresi dolu olarak siteyi acar.
         </p>
-        <p class="hint" id="installNote">
-          <strong>Kurulum ekrani acilmazsa:</strong> dugme dosyayi indirir; indirilenlerden
-          <code>.shortcut</code> dosyasina dokununca Kisayollar acilir. iOS "guvenilmeyen
-          kisayol" diye uyariyorsa <em>Ayarlar &rarr; Kisayollar &rarr; Guvenilmeyen Kisayollara
-          Izin Ver</em> secenegini ac (bu secenek ancak en az bir kisayol calistirdiktan sonra
-          gorunur). Hicbiri olmadiysa asagidaki elle kurulum tarifi her zaman calisir.
-        </p>
+        <div class="hint" id="installNote">
+          <p>
+            <strong>iOS "bu kestirme dogrulanamiyor" derse</strong> — dosya Apple tarafindan
+            imzalanmadigi icin normaldir. Iki adimda cozulur:
+          </p>
+          <ol class="fix-steps">
+            <li>
+              <strong>Ayarlar &rarr; Kestirmeler &rarr; Ozel Paylasma</strong>'yi ac.
+              (Kestirmeler uygulamasinin Turkce adi budur; ayar eski iOS surumlerinde
+              <em>Guvenilmeyen Kisayollara Izin Ver</em> adiyla geciyordu. Gorunmuyorsa once
+              Kestirmeler uygulamasindan herhangi bir kestirmeyi bir kez calistir, ayar
+              ondan sonra listeye gelir.)
+            </li>
+            <li>
+              Kurulum dugmesine yeniden dokun. Acilan onizlemede <strong>eylem listesinin en
+              altina kadar kaydir</strong> — iOS bunu bilerek zorunlu tutuyor — ve alttaki
+              <strong>Kestirmeyi Ekle</strong> (Add Untrusted Shortcut) dugmesine bas.
+            </li>
+          </ol>
+          <p>
+            Kurulum ekrani hic acilmazsa dugme dosyayi indirir; <em>Dosyalar &rarr; Indirilenler</em>
+            icindeki <code>.shortcut</code> dosyasina dokunmak da ayni ekrani acar. Hicbiri
+            olmadiysa asagidaki elle kurulum tarifi hicbir ayar gerektirmez: kendi kurdugun
+            kestirme zaten guvenilir sayilir.
+          </p>
+        </div>
       </section>
 
       <section class="card">
@@ -205,7 +230,8 @@
         <details class="advanced">
           <summary>Basit tarif: 5 eylem, dogrudan kaydeder</summary>
           <p class="hint">
-            Kisayollar uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir kisayol olustur
+            Kestirmeler (Shortcuts) uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir
+            kestirme olustur
             ve su eylemleri sirayla ekle:
           </p>
         <ol class="recipe">

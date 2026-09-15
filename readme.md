@@ -166,11 +166,15 @@ Kurulan kısayolun akışı: *paylaşılan adres → URL kodla → `/api/shortcu
 dosyayı indirip Fotoğraflar'a kaydet, değilse Türkçe açıklamayı bildir ve adresi dolu olarak
 siteyi aç.*
 
-> İmzasız kısayol dosyalarında iOS bazen *Ayarlar → Kısayollar → Güvenilmeyen Kısayollara İzin
-> Ver* ister (bu seçenek ancak en az bir kısayol çalıştırdıktan sonra görünür). Tamamen
-> sürtünmesiz kurulum isteyen, kısayolu bir kez telefona alıp iCloud bağlantısı olarak
-> paylaşabilir: iCloud bağlantıları Apple tarafından imzalandığı için bu uyarıyı hiç
-> göstermez.
+> **İmzasız dosya uyarısı.** Apple imzalamadığı için iOS kurulumdan önce *Ayarlar →
+> Kestirmeler → **Özel Paylaşma*** ayarının açık olmasını ister (eski iOS sürümlerinde adı
+> *Güvenilmeyen Kısayollara İzin Ver* idi; ayar görünmüyorsa önce herhangi bir kestirmeyi bir
+> kez çalıştırmak gerekir). Sonra kurulum önizlemesinde eylem listesinin en altına kadar kaydırıp
+> **Kestirmeyi Ekle** düğmesine basılır — iOS bu incelemeyi bilerek zorunlu tutuyor.
+>
+> Tamamen sürtünmesiz kurulum isteyen, kestirmeyi bir kez telefona alıp **iCloud bağlantısı**
+> olarak paylaşabilir: iCloud bağlantıları Apple tarafından imzalandığı için hiçbir uyarı
+> çıkmaz. Elle kurulan kestirme de güvenilir sayılır, hiçbir ayar gerektirmez.
 
 Uç, `/api/resolve` ile aynı çözümlemeyi yapar; farkı **seçim** aşamasındadır: Kısayollar
 uygulaması ffmpeg çalıştıramadığı için yalnızca **tek parçada inen** adaylar değerlendirilir
