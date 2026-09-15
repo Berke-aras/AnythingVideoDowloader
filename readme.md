@@ -150,9 +150,17 @@ YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
 
 ## iPhone Kısayolu (Shortcuts)
 
-iPhone'da paylaşım menüsünden indirmek için **üç eylemlik** bir kestirme yeter; adım adım
-tarif ve kopyalanabilir adresler **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
+iPhone'da paylaşım menüsünden indirmek için hazır kestirme **iCloud bağlantısıyla** tek
+dokunuşta kurulur (Apple imzaladığı için uyarı çıkmaz):
+**[Videoyu İndir](https://www.icloud.com/shortcuts/6c1c1871d50143f1bb1493983491d35c)**.
+Kendi alan adın için kendi kestirmeni kurmak istersen **üç eylem** yetiyor; adım adım tarif ve
+kopyalanabilir adresler **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
 sayfasında.
+
+Kestirme indirme sırasında **yüzde gösteremez**: `URL'nin İçeriğini Al` bölünmez tek bir
+eylemdir, Shortcuts'ta ilerleme bildiren bir API ya da ilerleme çubuğu eylemi yoktur. Başta ve
+sonda `Bildirim Göster` ile "İndiriliyor…" / "İndi: <dosya adı>" gösterilebilir; dosya adını
+`Dosyanın Ayrıntısını Al` verir.
 
 ```
 Metin:                   https://<site>/al?u=  +  [Kestirme Girdisi]

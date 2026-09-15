@@ -158,8 +158,30 @@
     </header>
 
     <main class="wrap">
+      <section class="card install-card">
+        <h2 class="section-title">Hazir kestirmeyi kur</h2>
+        <p class="hint">
+          Kestirme iCloud uzerinden paylasildi; Apple imzaladigi icin <strong>tek dokunusla,
+          uyarisiz</strong> kurulur. iPhone'dan dokun, acilan ekranda <strong>Kestirme
+          Ekle</strong> de.
+        </p>
+        <div class="install-actions">
+          <a
+            class="btn primary install-btn"
+            href="https://www.icloud.com/shortcuts/6c1c1871d50143f1bb1493983491d35c"
+            rel="noreferrer noopener"
+            >Videoyu Indir kestirmesini kur</a
+          >
+        </div>
+        <p class="hint">
+          Kurduktan sonra kestirme ayarlarindan <strong>Paylasim Sayfasinda Goster</strong>'in
+          acik oldugundan emin ol. Kendi kopyani kurduysan bu kestirme <em>bu</em> siteye istek
+          atar; kendi alan adin icin asagidaki tarifle kendi kestirmeni kur.
+        </p>
+      </section>
+
       <section class="card">
-        <h2 class="section-title">Kestirmeyi kur: 3 eylem</h2>
+        <h2 class="section-title">Kendin kurmak istersen: 3 eylem</h2>
         <p class="hint">
           <strong>Hazir dosya olarak kuramiyoruz:</strong> iOS imzalanmamis kestirme
           dosyalarinin ice aktarilmasini tumden reddediyor ("Imzalanmamis kestirmelerin
@@ -207,6 +229,45 @@
           <span class="action-name">Dosyaya Kaydet</span> kullan (ses bicimleri Fotograflar'a
           girmez).
           <button class="btn ghost" type="button" data-copy="audioPath">Kopyala</button>
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">"Indi" bildirimi ve ilerleme</h2>
+        <p class="hint">
+          <strong>Yuzdelik ilerleme cubugu Kestirmeler'de yapilamiyor.</strong>
+          <span class="action-name">URL'nin Icerigini Al</span> bolunmez tek bir eylemdir:
+          indirme suresince yuzde bildiren bir arayuz ya da "ilerleme cubugu" eylemi yok. iOS
+          yalnizca kendi calisiyor gostergesini (paylasim sayfasindaki donen simge, ust
+          koseki rozet) gosterir. Yapilabilecek sey basta ve sonda bildirim vermektir — asagidaki
+          iki eylem bunu kurar.
+        </p>
+        <ol class="recipe">
+          <li>
+            <strong>Basa:</strong> <span class="action-name">Bildirim Goster</span> (Show
+            Notification) ekle, metni <em>Indiriliyor...</em> olsun. Bu eylem
+            <span class="action-name">Metin</span>'den once gelmeli.
+          </li>
+          <li>
+            <strong>Sona:</strong> once <span class="action-name">Dosyanin Ayrintisini Al</span>
+            (Get Details of Files) ekle, girdisi <strong>URL'nin Icerigi</strong>, ayrinti
+            <strong>Ad</strong> olsun. Ardina bir
+            <span class="action-name">Bildirim Goster</span> daha ekle ve metnine
+            <em>Indi:</em> yazip yanina o <strong>Ad</strong> degiskenini koy.
+          </li>
+        </ol>
+        <p class="hint">
+          Boyut da gostermek istersen ikinci bir
+          <span class="action-name">Dosyanin Ayrintisini Al</span> ekleyip
+          <strong>Dosya Boyutu</strong>'nu sec ve bildirim metnine ekle. Bildirimler kestirmeyi
+          yavaslatmaz; indirme yine tek istekte biter.
+        </p>
+        <p class="hint">
+          <strong>Hatalarda ne olur?</strong> Kestirmeler'de hata yakalama yoktur: indirilebilir
+          bir dosya bulunamazsa iOS kendi hata penceresini gosterir. Bunun yerine kendi
+          mesajini gostermek istiyorsan asagidaki <strong>JSON ucu</strong> tarifini kullan —
+          orada <span class="action-name">Eger</span> ile dallanip
+          <span class="action-name">Bildirim Goster</span> ile Turkce aciklamayi verebilirsin.
         </p>
       </section>
 
