@@ -148,6 +148,45 @@ YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
 
 ---
 
+## iPhone Kısayolu (Shortcuts)
+
+iPhone'da paylaşım menüsünden **tek dokunuşla** indirmek için `/api/shortcut` ucu ve
+adım adım tarifi anlatan bir sayfa var: **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
+(sitedeki adresler kendi alan adına göre doldurulur, kopyala düğmeleriyle alınır).
+
+Uç, `/api/resolve` ile aynı çözümlemeyi yapar; farkı **seçim** aşamasındadır: Kısayollar
+uygulaması ffmpeg çalıştıramadığı için yalnızca **tek parçada inen** adaylar değerlendirilir
+(HLS/DASH ve "video + ses ayrı" olanlar elenir), kalanlar arasından telefonun oynatabildiği
+biçim (mp4/m4v/mov) ve en yüksek çözünürlük seçilir.
+
+```
+GET /api/shortcut?url=<sayfa>              →  JSON: {ok, title, filename, url, webUrl, ...}
+GET /api/shortcut?url=<sayfa>&redirect=1   →  302: dosyanın kendisi (Kısayol byte'ları alır)
+```
+
+| Parametre | Ne yapar |
+| --- | --- |
+| `url` | Çözümlenecek adres. POST gövdesinde düz metin / JSON / form olarak da kabul edilir; paylaşılan metnin içine gömülü ilk adres bulunur. |
+| `redirect=1` | JSON yerine doğrudan dosyaya yönlendirir. |
+| `type=audio` | Video yerine ses dosyası seçer (`type=any` ikisini birden değerlendirir). |
+| `max=720` | Bu yüksekliğin üstündeki kaliteleri eler. |
+| `list=1` | Uygun tüm seçenekleri `options` dizisinde döner (Kısayol'da "Listeden Seç" için). |
+| `strict=1` | Hatalarda gerçek HTTP kodu döner. |
+| `X-Site-Cookie` başlığı | Gizli gönderiler ve YouTube bot kontrolü için kendi oturum çerezin. |
+
+Yanıt **varsayılan olarak her zaman 200** döner ve başarı bilgisi gövdedeki `ok` alanındadır:
+Kısayollar 2xx dışındaki yanıtlarda akışı okunmaz bir hatayla durdurur, böyleyse kullanıcıya
+Türkçe açıklama (`message`) gösterilebiliyor. İndirme adresi `/api/proxy`'ye `name=` ile gider;
+proxy de `Content-Disposition` yazdığı için dosya telefonda doğru adla kaydedilir.
+
+**Sınır ve çözümü.** Birleştirme gerektiren videolarda (çoğu YouTube videosu) uç
+`ok: false`, `needsMerge: true` ve adresi önceden doldurulmuş `webUrl` döner. Sayfadaki
+**gelişmiş tarif** bunu kullanır: dosya varsa kaydeder, yoksa siteyi açar ve birleştirmeyi
+tarayıcıdaki ffmpeg.wasm yapar. Sunucuda mux yapılmaz — projenin bütün mantığı ağır işi
+istemcide tutmaktır.
+
+---
+
 ## Rastgele sitelerde nasıl davranıyor?
 
 Bilinen bir platform değilse çözümleyici sayfayı sırayla şu yollardan tarar ve ilk
@@ -356,8 +395,10 @@ Bunlar eksiklik değil, yöntemin sınırları:
 ```
 public/                     Netlify'a yayımlanan statik site
   index.html
+  shortcuts.html            iPhone Kısayolu kurulum rehberi
   assets/app.css
   assets/app.js             arayüz orkestrasyonu
+  assets/shortcuts.js       kısayol sayfası (adres doldurma + deneme kutusu)
   assets/engine.js          parçalı indirme, HLS ve DASH ayrıştırıcıları
   assets/ffmpeg.js          ffmpeg.wasm köprüsü
   manifest.webmanifest      ana ekrana ekleme + paylaşım hedefi
@@ -366,8 +407,10 @@ public/                     Netlify'a yayımlanan statik site
   vendor/ffmpeg/            yapım sırasında üretilir (depoya girmez)
 
 netlify/
-  functions/resolve.mts     medya adaylarını çıkarır (platform çözümleyicileri dâhil)
+  functions/resolve.mts     /api/resolve — çözümleyiciyi çağırır, JSON döner
+  functions/shortcut.mts    /api/shortcut — iPhone Kısayolu için tek dosyalık kaynak seçer
   functions/proxy.mts       CORS aktarıcı
+  lib/resolver.mts          medya adaylarını çıkarır (platform çözümleyicileri dâhil)
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
 tools/avd-helper.py         yerel yardımcı (yt-dlp ile çözüm + bayt aktarımı)

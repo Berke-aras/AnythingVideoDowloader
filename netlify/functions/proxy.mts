@@ -20,6 +20,21 @@ import {
   upstreamHeaders,
 } from "../lib/net.mjs";
 
+/**
+ * Indirilen dosyanin adini tarayiciya/telefona bildirir (RFC 6266).
+ *
+ * ASCII disi karakterler icin iki bicim birden yazilir: tirnak icindeki sade
+ * karsilik eski istemciler, `filename*` ise Turkce harfleri dogru gosteren
+ * yeni istemciler icindir. Satir sonlari ve tirnaklar temizlenir; aksi halde
+ * ad uzerinden yanit basligina veri sokusturulabilir.
+ */
+function contentDisposition(name: string): string {
+  const clean = name.replace(/[\r\n"\\]/g, " ").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  const safe = clean.slice(0, 120) || "video";
+  const ascii = safe.replace(/[^\x20-\x7e]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+}
+
 export default async (req: Request, _context: Context) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -91,6 +106,12 @@ export default async (req: Request, _context: Context) => {
     "X-Final-Url": upstream.url || safe.toString(),
     "Cache-Control": "no-store",
   });
+  // Dosya adi: /api/shortcut bunu ekler, cunku Kisayollar ve iOS paylasim
+  // sayfasi adi yalnizca yanit basligindan okuyabiliyor. Tarayici arayuzu
+  // dosyayi kendi adlandirdigi icin bu parametreyi hic gondermez.
+  const name = params.get("name");
+  if (name) out["Content-Disposition"] = contentDisposition(name);
+
   const encoding = (upstream.headers.get("content-encoding") || "identity").toLowerCase();
   const passthrough = ["content-type", "content-range", "accept-ranges", "last-modified", "etag"];
   // Kaynak yine de sikistirilmis dondurduyse Content-Length acilmis govdeyi

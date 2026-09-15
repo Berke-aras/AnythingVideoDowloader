@@ -551,6 +551,13 @@ textarea:focus-visible {
   color: var(--accent);
 }
 
+/* Altbilgide birden fazla baglanti: dar ekranda alt alta dusmesin. */
+.footer-links {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 /* Cihaza gore gorunurluk: yerel yardimci masaustune, paylasim ipuclari
    telefona aittir. Dokunmatik + dar ekran mobil sayilir. */
 .mobile-only {

@@ -8,12 +8,17 @@
  */
 
 // Surum degisince eski onbellek tumden silinir (activate icinde).
-const CACHE = "avd-shell-v2";
+const CACHE = "avd-shell-v3";
 const SHELL = [
   "/",
   "/index.html",
+  // Kisayol sayfasi iki adresten de acilabiliyor (Netlify uzantisiz servis
+  // ediyor); cevrimdisi calismasi icin ikisi de onbellege girer.
+  "/shortcuts",
+  "/shortcuts.html",
   "/assets/app.css",
   "/assets/app.js",
+  "/assets/shortcuts.js",
   "/assets/engine.js",
   "/assets/ffmpeg.js",
   "/manifest.webmanifest",
@@ -48,10 +53,15 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/vendor/")) return; // FFmpeg cekirdegi
   if (request.headers.has("range")) return; // parcali indirmeler
 
-  // Sayfa gezintisi: once agdan dene, cevrimdisiysa kabugu ver.
+  // Sayfa gezintisi: once agdan dene, cevrimdisiysa once istenen sayfayi,
+  // o da onbellekte yoksa ana sayfayi ver. (Sitede /shortcuts gibi baska
+  // sayfalar da var; hepsine ana sayfayi vermek yanlis olurdu.)
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => caches.match("/index.html").then((r) => r ?? Response.error())),
+      fetch(request).catch(async () => {
+        const cached = await caches.match(request, { ignoreSearch: true });
+        return cached ?? (await caches.match("/index.html")) ?? Response.error();
+      }),
     );
     return;
   }

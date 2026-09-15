@@ -9,3 +9,6 @@ __pycache__/
 .DS_Store
 public/vendor/
 public/icons/
+
+# netlify dev tarafindan uretilir (edge fonksiyon calisma zamani)
+deno.lock
