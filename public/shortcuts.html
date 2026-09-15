@@ -158,156 +158,100 @@
     </header>
 
     <main class="wrap">
-      <section class="card install-card">
-        <h2 class="section-title">Tek dokunusla kur</h2>
-        <p class="hint">
-          Asagidaki dugme kisayolu <strong>hazir halde</strong> Kestirmeler (Shortcuts) uygulamasina yukler:
-          eylemleri elle dizmen gerekmez. iPhone'dan ac, dokun, acilan ekranda
-          <strong>Kisayol Ekle</strong> de.
-        </p>
-        <div class="install-actions">
-          <a class="btn primary install-btn" id="installVideo" href="/avd.shortcut">
-            Videoyu Indir kisayolunu kur
-          </a>
-          <a class="btn ghost install-btn" id="installAudio" href="/avd.shortcut?type=audio">
-            Sesi Indir (MP3/M4A) kisayolunu kur
-          </a>
-        </div>
-        <p class="hint">
-          Kurulan kisayol paylasim sayfasina yerlesir: YouTube, Instagram, X ya da Safari'de
-          <em>Paylas &rarr; Videoyu Indir</em> dedigin anda calisir. Dosya bulunursa
-          Fotograflar'a kaydeder; birlestirme gerektiren bir video ise nedenini bildirir ve
-          adresi dolu olarak siteyi acar.
-        </p>
-        <div class="hint" id="installNote">
-          <p>
-            <strong>iOS "bu kestirme dogrulanamiyor" derse</strong> — dosya Apple tarafindan
-            imzalanmadigi icin normaldir. Iki adimda cozulur:
-          </p>
-          <ol class="fix-steps">
-            <li>
-              <strong>Ayarlar &rarr; Kestirmeler &rarr; Ozel Paylasma</strong>'yi ac.
-              (Kestirmeler uygulamasinin Turkce adi budur; ayar eski iOS surumlerinde
-              <em>Guvenilmeyen Kisayollara Izin Ver</em> adiyla geciyordu. Gorunmuyorsa once
-              Kestirmeler uygulamasindan herhangi bir kestirmeyi bir kez calistir, ayar
-              ondan sonra listeye gelir.)
-            </li>
-            <li>
-              Kurulum dugmesine yeniden dokun. Acilan onizlemede <strong>eylem listesinin en
-              altina kadar kaydir</strong> — iOS bunu bilerek zorunlu tutuyor — ve alttaki
-              <strong>Kestirmeyi Ekle</strong> (Add Untrusted Shortcut) dugmesine bas.
-            </li>
-          </ol>
-          <p>
-            Kurulum ekrani hic acilmazsa dugme dosyayi indirir; <em>Dosyalar &rarr; Indirilenler</em>
-            icindeki <code>.shortcut</code> dosyasina dokunmak da ayni ekrani acar. Hicbiri
-            olmadiysa asagidaki elle kurulum tarifi hicbir ayar gerektirmez: kendi kurdugun
-            kestirme zaten guvenilir sayilir.
-          </p>
-        </div>
-      </section>
-
       <section class="card">
-        <h2 class="section-title">Ne yapiyor?</h2>
+        <h2 class="section-title">Kestirmeyi kur: 3 eylem</h2>
         <p class="hint">
-          iPhone'da bir videoyu paylasip <strong>Kisayol</strong>'a verdiginde, kisayol adresi
-          buradaki <code>/api/shortcut</code> ucuna gonderir. Uc, sayfadaki medya adreslerini
-          cozumler ve <strong>tek parcada inen</strong> en iyi dosyayi secip dogrudan telefona
-          verir. Kisayol da onu <em>Fotograflar</em>'a ya da <em>Dosyalar</em>'a kaydeder.
-          Tarayiciyi acmana, bir seyi yapistirmana gerek kalmaz.
+          <strong>Hazir dosya olarak kuramiyoruz:</strong> iOS imzalanmamis kestirme
+          dosyalarinin ice aktarilmasini tumden reddediyor ("Imzalanmamis kestirmelerin
+          dosyalarinin ice aktarilmasi desteklenmiyor"). Bu bir ayar meselesi degil, Apple'in
+          kapattigi bir yol. Onun yerine kurulumu en aza indirdik: <strong>uc eylem</strong>,
+          adres kodlama yok, kosul yok.
         </p>
         <p class="hint">
-          <strong>Sinir:</strong> Kisayollar ffmpeg calistiramaz. Video ile sesin ayri geldigi
-          (YouTube'un yuksek kaliteleri) ya da parcalara bolunmus (HLS/DASH) kaynaklar telefonda
-          birlestirilemez. Uc bunu fark ettiginde kisayola <code>ok: false</code> ve sitenin
-          adresini doner; asagidaki <a href="#gelismis">gelismis tarif</a> bu durumda siteyi
-          acar, birlestirme tarayicida yapilir.
+          Kestirmeler uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir kestirme
+          olustur ve sunlari sirayla ekle:
         </p>
-      </section>
-
-      <section class="card">
-        <h2 class="section-title">Elle kurulum (yedek yol)</h2>
-        <details class="advanced">
-          <summary>Basit tarif: 5 eylem, dogrudan kaydeder</summary>
-          <p class="hint">
-            Kestirmeler (Shortcuts) uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir
-            kestirme olustur
-            ve su eylemleri sirayla ekle:
-          </p>
         <ol class="recipe">
           <li>
-            <span class="action-name">URL Kodla</span> (Encode URL) ekle. Girdisi
-            <strong>Kisayol Girdisi</strong> olsun — paylasilan baglanti budur. Bu adim sart:
-            kodlanmadan gonderilen <code>?v=...&amp;t=...</code> gibi adresler yolda bozulur.
-          </li>
-          <li>
-            <span class="action-name">Metin</span> (Text) ekle ve icine sunu yaz — sondaki
-            <strong>Kodlanmis URL</strong> degiskenini eylem listesinden sec:
+            <span class="action-name">Metin</span> ekle. Icine once su adresi yapistir, hemen
+            ardina degisken listesinden <strong>Kestirme Girdisi</strong>'ni sec:
             <div class="copy-row">
-              <code id="textAction">https://.../api/shortcut?redirect=1&amp;url=</code>
+              <code id="textAction">https://.../al?u=</code>
               <button class="btn ghost" type="button" data-copy="textAction">Kopyala</button>
             </div>
+            <span class="muted small">
+              Sonuc soyle gorunmeli: <code>https://.../al?u=</code><em>[Kestirme Girdisi]</em>
+            </span>
           </li>
           <li>
-            <span class="action-name">Sayfa Icerigini Al</span> (Get Contents of URL) ekle;
-            adresi bir onceki <strong>Metin</strong> olsun. Yontem <code>GET</code> kalir.
-            Bu adim videonun kendisini indirir.
+            <span class="action-name">URL'nin Icerigini Al</span> (Get Contents of URL) ekle.
+            Adres alani kendiliginden bir onceki <strong>Metin</strong> olur; olmazsa elle sec.
           </li>
           <li>
-            <span class="action-name">Videoyu Fotograf Albumune Kaydet</span> (Save to Photo
-            Album) ekle. Dosyalar'a kaydetmeyi tercih ediyorsan bunun yerine
+            <span class="action-name">Fotograf Albumune Kaydet</span> (Save to Photo Album)
+            ekle. Dosyalar'a kaydetmeyi tercih edersen bunun yerine
             <span class="action-name">Dosyaya Kaydet</span> kullan.
           </li>
           <li>
-            Kisayol ayarlarindan (i simgesi) <strong>Paylasim Sayfasinda Goster</strong>'i ac ve
-            girdi turunu <strong>URL</strong> olarak birak. Kisayola bir ad ver, ornegin
-            <em>Videoyu Indir</em>.
+            Ayarlar (i simgesi) &rarr; <strong>Paylasim Sayfasinda Goster</strong>'i ac, girdi
+            turunu <strong>URL</strong> birak ve kestirmeye bir ad ver: <em>Videoyu Indir</em>.
           </li>
         </ol>
-          <p class="hint">
-            Bitti. Instagram, X, Reddit ya da Safari'de <em>Paylas &rarr; Videoyu Indir</em>
-            dedigin anda video telefonuna kaydedilir. Tek parca inen bir surumu olmayan
-            videolarda (cogu YouTube videosu boyledir) bu basit tarif hata verir; onlar icin
-            asagidaki gelismis tarifi kur, siteyi acsin.
-          </p>
-        </details>
+        <p class="hint">
+          Bitti. Instagram, X, Reddit ya da Safari'de <em>Paylas &rarr; Videoyu Indir</em>
+          dedigin anda video telefonuna kaydedilir.
+        </p>
+        <p class="hint">
+          <strong>Ses istiyorsan</strong> ayni tarifi kur, yalnizca adresi
+          <code id="audioPath">https://.../ses?u=</code> yap ve son adimda
+          <span class="action-name">Dosyaya Kaydet</span> kullan (ses bicimleri Fotograflar'a
+          girmez).
+          <button class="btn ghost" type="button" data-copy="audioPath">Kopyala</button>
+        </p>
+      </section>
 
-        <details class="advanced" id="gelismis">
-          <summary>Gelismis tarif: olmadiginda siteyi acsin (kurulan kisayolun ayni)</summary>
+      <section class="card">
+        <h2 class="section-title">Ne yapiyor, neyi yapamiyor?</h2>
+        <p class="hint">
+          <code>/al?u=</code> ucu paylastigin adresi cozumler, telefonun <strong>tek parcada
+          indirebilecegi</strong> en iyi dosyayi secer ve dogrudan ona yonlendirir. Kestirme de
+          onu Fotograflar'a kaydeder. Adres kodlamaya gerek yok: adres sorgu dizesinin sonuna
+          ham halde eklendigi icin <code>?v=...&amp;t=...</code> gibi parametreler bozulmaz.
+        </p>
+        <p class="hint">
+          <strong>Sinir:</strong> Kestirmeler ffmpeg calistiramaz. Video ile sesin ayri geldigi
+          (YouTube'un yuksek kaliteleri) ya da parcalara bolunmus (HLS/DASH) kaynaklar telefonda
+          birlestirilemez. Bu videolarda kestirme hata verir ve hatanin icinde sitenin adresi
+          yazar: oradan actiginda birlestirmeyi tarayicidaki ffmpeg.wasm yapar. Instagram, X,
+          Reddit ve dogrudan mp4 baglantilari kestirmeyle sorunsuz iner.
+        </p>
+        <p class="hint">
+          <strong>Baskalarina tek dokunusla kurdurmak icin:</strong> kestirmeyi kurduktan sonra
+          Kestirmeler uygulamasinda <em>Paylas &rarr; iCloud Baglantisi Kopyala</em> de. iCloud
+          baglantilari Apple tarafindan imzalandigi icin karsi taraf hicbir uyari gormeden tek
+          dokunusla kurar; o baglanti buraya konabilir.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Gelismis: JSON ucu</h2>
+        <details class="advanced">
+          <summary>Kestirmede hata yerine kendi ekranini gostermek istersen</summary>
           <p class="hint">
-            <code>redirect=1</code> olmadan istek atilirsa uc JSON doner. Kisayol bu JSON'a bakip
-            karar verebilir: dosya varsa kaydeder, yoksa adresi zaten dolu olan siteyi acar ve
-            birlestirmeyi tarayici yapar. Yukaridaki dugmenin kurdugu kisayol tam olarak budur.
+            <code>/api/shortcut?url=</code> ucu ayni cozumlemeyi yapar ama dosya yerine JSON
+            doner. Kestirmede <span class="action-name">Sozluk Degeri Al</span> ile
+            <code>result</code> anahtarina bakip <span class="action-name">Eger</span> ile
+            dallanabilirsin: <code>ok</code> ise <code>url</code> anahtarini indirip kaydet,
+            degilse <code>message</code>'i goster ve <code>webUrl</code>'i ac. Bu yolda adresi
+            <span class="action-name">URL Kodla</span> ile kodlaman gerekir.
           </p>
-        <ol class="recipe">
-          <li>
-            <span class="action-name">URL Kodla</span> &rarr; <span class="action-name">Metin</span>:
-            <div class="copy-row">
-              <code id="textActionJson">https://.../api/shortcut?url=</code>
-              <button class="btn ghost" type="button" data-copy="textActionJson">Kopyala</button>
-            </div>
-          </li>
-          <li>
-            <span class="action-name">Sayfa Icerigini Al</span> &rarr;
-            <span class="action-name">Sozluk Degeri Al</span> (Get Dictionary Value): anahtar
-            <code>ok</code>.
-          </li>
-          <li>
-            <span class="action-name">Eger</span> (If): deger <strong>1</strong> ise &rarr;
-            <span class="action-name">Sozluk Degeri Al</span> ile <code>url</code> anahtarini al,
-            <span class="action-name">Sayfa Icerigini Al</span> ile indir,
-            <span class="action-name">Videoyu Fotograf Albumune Kaydet</span> ile kaydet.
-          </li>
-          <li>
-            <strong>Aksi halde</strong> &rarr; <span class="action-name">Sozluk Degeri Al</span>
-            ile <code>webUrl</code> anahtarini al ve
-            <span class="action-name">URL'leri Ac</span> (Open URLs) ile ac. Istersen once
-            <code>message</code> anahtarini <span class="action-name">Uyari Goster</span> ile
-            gosterebilirsin: neden olmadigi Turkce yazar.
-          </li>
-          </ol>
+          <div class="copy-row">
+            <code id="textActionJson">https://.../api/shortcut?url=</code>
+            <button class="btn ghost" type="button" data-copy="textActionJson">Kopyala</button>
+          </div>
         </details>
       </section>
+
 
       <section class="card">
         <h2 class="section-title">Ucun parametreleri</h2>

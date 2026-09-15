@@ -9,51 +9,17 @@
 const $ = (id) => document.getElementById(id);
 const base = location.origin;
 
-/** Tariflerdeki "https://.../api/shortcut" yerlerini gercek adresle doldurur. */
+/** Tariflerdeki "https://..." yerlerini sitenin gercek adresiyle doldurur. */
 function fillEndpoints() {
   const values = {
     endpoint: `${base}/api/shortcut`,
-    textAction: `${base}/api/shortcut?redirect=1&url=`,
+    textAction: `${base}/al?u=`,
+    audioPath: `${base}/ses?u=`,
     textActionJson: `${base}/api/shortcut?url=`,
   };
   for (const [id, value] of Object.entries(values)) {
     const el = $(id);
     if (el) el.textContent = value;
-  }
-}
-
-/**
- * Kurulum dugmeleri: iPhone'da `shortcuts://import-shortcut` semasi Kisayollar
- * uygulamasini acar ve "Kisayol Ekle" ekranini gosterir. Sema yalnizca iOS'ta
- * anlamli oldugu icin diger cihazlarda dugme dosyayi indirmeye devam eder
- * (HTML'deki href zaten /avd.shortcut'i gosteriyor).
- */
-function wireInstallButtons() {
-  const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
-  const buttons = [
-    { id: "installVideo", path: "/avd.shortcut", name: "Videoyu Indir" },
-    { id: "installAudio", path: "/avd.shortcut?type=audio", name: "Sesi Indir" },
-  ];
-
-  for (const { id, path, name } of buttons) {
-    const el = $(id);
-    if (!el) continue;
-    const fileUrl = `${base}${path}`;
-    el.href = isApple
-      ? `shortcuts://import-shortcut?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(name)}`
-      : fileUrl;
-    // Sema calismazsa (masaustu tarayici, eski iOS) dosyanin kendisi elde
-    // kalsin diye dogrudan adres de gosterilir.
-    el.dataset.fileUrl = fileUrl;
-  }
-
-  const note = $("installNote");
-  if (note && !isApple) {
-    note.insertAdjacentHTML(
-      "afterbegin",
-      "<p><strong>Bu cihaz iPhone degil:</strong> dugme kestirme dosyasini indirir. Kurulum " +
-        "ancak telefonda yapilabilir — sayfayi iPhone'da ac ya da dosyayi telefonuna gonder.</p>",
-    );
   }
 }
 
@@ -160,7 +126,6 @@ async function tryResolve(event) {
 }
 
 fillEndpoints();
-wireInstallButtons();
 wireCopyButtons();
 $("tryForm").addEventListener("submit", tryResolve);
 

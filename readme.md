@@ -150,31 +150,33 @@ YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
 
 ## iPhone Kısayolu (Shortcuts)
 
-iPhone'da paylaşım menüsünden **tek dokunuşla** indirmek için hazır bir kısayol var:
-**[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)** sayfasındaki
-düğme `shortcuts://import-shortcut` ile Kısayollar uygulamasını açar ve "Kısayol Ekle"
-ekranını gösterir — eylemleri elle dizmek gerekmez. Sayfada elle kurulum tarifi de yedek
-olarak duruyor.
+iPhone'da paylaşım menüsünden indirmek için **üç eylemlik** bir kestirme yeter; adım adım
+tarif ve kopyalanabilir adresler **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
+sayfasında.
 
-Kısayol dosyasını `/avd.shortcut` ucu üretir (`?type=audio` ses sürümünü verir). Dosya
-sunucuda üretiliyor çünkü **sitenin kendi adresi** kısayolun içine gömülmek zorunda:
-projeyi kendi Netlify hesabına kuran birinin kısayolu kendi alan adına istek atsın diye.
-İçerik bir XML plist'tir; eylemler UUID ile birbirine bağlanır, `WFWorkflowTypes:
-["ActionExtension"]` ile paylaşım sayfasına yerleşir.
+```
+Metin:                   https://<site>/al?u=  +  [Kestirme Girdisi]
+URL'nin İçeriğini Al
+Fotoğraf Albümüne Kaydet
+```
 
-Kurulan kısayolun akışı: *paylaşılan adres → URL kodla → `/api/shortcut` → `result` "ok" ise
-dosyayı indirip Fotoğraflar'a kaydet, değilse Türkçe açıklamayı bildir ve adresi dolu olarak
-siteyi aç.*
+`/al?u=<adres>` (ses için `/ses?u=<adres>`) çözümlemeyi yapar, telefonun **tek parçada
+indirebileceği** en iyi dosyayı seçer ve doğrudan ona yönlendirir. Adres, `u=` işaretinden
+sonraki **ham metnin tamamı** olarak alınır: hedefin kendi `?v=...&t=...` parametreleri
+bozulmadan geldiği için kestirmede "URL Kodla" adımına gerek kalmaz. (Adres yolun içine
+konmuyor: Netlify yol normalizasyonu `/watch` gibi parçalara `/index.htm` ekleyip hedefi
+bozuyor — sorgu dizesi aynen geçiyor.)
 
-> **İmzasız dosya uyarısı.** Apple imzalamadığı için iOS kurulumdan önce *Ayarlar →
-> Kestirmeler → **Özel Paylaşma*** ayarının açık olmasını ister (eski iOS sürümlerinde adı
-> *Güvenilmeyen Kısayollara İzin Ver* idi; ayar görünmüyorsa önce herhangi bir kestirmeyi bir
-> kez çalıştırmak gerekir). Sonra kurulum önizlemesinde eylem listesinin en altına kadar kaydırıp
-> **Kestirmeyi Ekle** düğmesine basılır — iOS bu incelemeyi bilerek zorunlu tutuyor.
->
-> Tamamen sürtünmesiz kurulum isteyen, kestirmeyi bir kez telefona alıp **iCloud bağlantısı**
-> olarak paylaşabilir: iCloud bağlantıları Apple tarafından imzalandığı için hiçbir uyarı
-> çıkmaz. Elle kurulan kestirme de güvenilir sayılır, hiçbir ayar gerektirmez.
+> **Kurulabilir `.shortcut` dosyası neden yok?** Denendi, çalışmıyor: güncel iOS imzalanmamış
+> kestirme dosyalarının içe aktarılmasını tümden reddediyor ("İmzalanmamış kestirmelerin
+> dosyalarının içe aktarılması desteklenmiyor"). Bu bir ayar meselesi değil — *Ayarlar →
+> Kestirmeler → Özel Paylaşma* açıkken de olmuyor. Tek dokunuşla kurulumun tek yolu,
+> kestirmeyi bir Apple cihazında oluşturup **iCloud bağlantısı** olarak paylaşmak; o
+> bağlantılar Apple tarafından imzalanır. (Plist üreten kod bu yüzden kaldırıldı; git
+> geçmişinde `netlify/lib/shortcut-file.mts` olarak duruyor.)
+
+Aşağıdaki JSON ucu ise kestirmede kendi ekranını göstermek ya da başka otomasyonlarda
+kullanmak isteyenler için:
 
 Uç, `/api/resolve` ile aynı çözümlemeyi yapar; farkı **seçim** aşamasındadır: Kısayollar
 uygulaması ffmpeg çalıştıramadığı için yalnızca **tek parçada inen** adaylar değerlendirilir
@@ -432,11 +434,11 @@ public/                     Netlify'a yayımlanan statik site
 
 netlify/
   functions/resolve.mts     /api/resolve — çözümleyiciyi çağırır, JSON döner
-  functions/shortcut.mts    /api/shortcut — iPhone Kısayolu için tek dosyalık kaynak seçer
-  functions/shortcut-file.mts  /avd.shortcut — kurulabilir kısayol dosyasını üretir
+  functions/shortcut.mts    /api/shortcut — JSON ucu (kestirme, otomasyon, betik)
+  functions/grab.mts        /al?u= ve /ses?u= — dosyanın kendisine yönlendirir
   functions/proxy.mts       CORS aktarıcı
   lib/resolver.mts          medya adaylarını çıkarır (platform çözümleyicileri dâhil)
-  lib/shortcut-file.mts     kısayol plist'ini kurar (eylemler, UUID bağları)
+  lib/shortcut-pick.mts     telefonun indirebileceği adayı seçer (iki uç da kullanır)
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
 tools/avd-helper.py         yerel yardımcı (yt-dlp ile çözüm + bayt aktarımı)
