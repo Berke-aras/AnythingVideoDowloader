@@ -160,7 +160,13 @@ export default async (req: Request, _context: Context) => {
         headers: corsHeaders({ "Content-Type": "text/plain; charset=utf-8" }),
       });
     }
-    return jsonResponse({ ok: false, status, message, ...extra }, strict ? status : 200);
+    // `result` alani `ok` ile ayni bilgiyi duz metin olarak tasir: Kisayollar
+    // mantiksal degerleri cihaza gore 1/0/true diye gosterdigi icin "Eger"
+    // kosulunu metin uzerinden kurmak daha guvenli.
+    return jsonResponse(
+      { ok: false, result: "error", status, message, ...extra },
+      strict ? status : 200,
+    );
   };
 
   const target = await targetFrom(req, params);
@@ -240,6 +246,8 @@ export default async (req: Request, _context: Context) => {
 
   return jsonResponse({
     ok: true,
+    /** Kisayol'un "Eger" kosulu bunu okur (bkz. fail icindeki not). */
+    result: "ok",
     title: page.title,
     filename,
     ext: best.ext,

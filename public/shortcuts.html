@@ -118,6 +118,17 @@
         display: block;
         color: var(--accent);
       }
+      .install-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin: 0.9rem 0;
+      }
+      .install-btn {
+        text-decoration: none;
+        text-align: center;
+        flex: 1 1 15rem;
+      }
     </style>
   </head>
   <body>
@@ -135,12 +146,42 @@
         <div class="chips">
           <span class="chip">Kisayollar</span>
           <span class="chip">iOS 15+</span>
-          <span class="chip">/api/shortcut</span>
+          <span class="chip">Tek dokunusla kurulum</span>
         </div>
       </div>
     </header>
 
     <main class="wrap">
+      <section class="card install-card">
+        <h2 class="section-title">Tek dokunusla kur</h2>
+        <p class="hint">
+          Asagidaki dugme kisayolu <strong>hazir halde</strong> Kisayollar uygulamasina yukler:
+          eylemleri elle dizmen gerekmez. iPhone'dan ac, dokun, acilan ekranda
+          <strong>Kisayol Ekle</strong> de.
+        </p>
+        <div class="install-actions">
+          <a class="btn primary install-btn" id="installVideo" href="/avd.shortcut">
+            Videoyu Indir kisayolunu kur
+          </a>
+          <a class="btn ghost install-btn" id="installAudio" href="/avd.shortcut?type=audio">
+            Sesi Indir (MP3/M4A) kisayolunu kur
+          </a>
+        </div>
+        <p class="hint">
+          Kurulan kisayol paylasim sayfasina yerlesir: YouTube, Instagram, X ya da Safari'de
+          <em>Paylas &rarr; Videoyu Indir</em> dedigin anda calisir. Dosya bulunursa
+          Fotograflar'a kaydeder; birlestirme gerektiren bir video ise nedenini bildirir ve
+          adresi dolu olarak siteyi acar.
+        </p>
+        <p class="hint" id="installNote">
+          <strong>Kurulum ekrani acilmazsa:</strong> dugme dosyayi indirir; indirilenlerden
+          <code>.shortcut</code> dosyasina dokununca Kisayollar acilir. iOS "guvenilmeyen
+          kisayol" diye uyariyorsa <em>Ayarlar &rarr; Kisayollar &rarr; Guvenilmeyen Kisayollara
+          Izin Ver</em> secenegini ac (bu secenek ancak en az bir kisayol calistirdiktan sonra
+          gorunur). Hicbiri olmadiysa asagidaki elle kurulum tarifi her zaman calisir.
+        </p>
+      </section>
+
       <section class="card">
         <h2 class="section-title">Ne yapiyor?</h2>
         <p class="hint">
@@ -160,11 +201,13 @@
       </section>
 
       <section class="card">
-        <h2 class="section-title">Kisayolu kur (2 dakika)</h2>
-        <p class="hint">
-          Kisayollar uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir kisayol olustur
-          ve su eylemleri sirayla ekle:
-        </p>
+        <h2 class="section-title">Elle kurulum (yedek yol)</h2>
+        <details class="advanced">
+          <summary>Basit tarif: 5 eylem, dogrudan kaydeder</summary>
+          <p class="hint">
+            Kisayollar uygulamasini ac, sag ustten <strong>+</strong> ile yeni bir kisayol olustur
+            ve su eylemleri sirayla ekle:
+          </p>
         <ol class="recipe">
           <li>
             <span class="action-name">URL Kodla</span> (Encode URL) ekle. Girdisi
@@ -195,21 +238,21 @@
             <em>Videoyu Indir</em>.
           </li>
         </ol>
-        <p class="hint">
-          Bitti. Instagram, X, Reddit ya da Safari'de <em>Paylas &rarr; Videoyu Indir</em> dedigin
-          anda video telefonuna kaydedilir. Tek parca inen bir surumu olmayan videolarda
-          (cogu YouTube videosu boyledir) bu basit tarif hata verir; onlar icin asagidaki
-          gelismis tarifi kur, siteyi acsin.
-        </p>
-      </section>
+          <p class="hint">
+            Bitti. Instagram, X, Reddit ya da Safari'de <em>Paylas &rarr; Videoyu Indir</em>
+            dedigin anda video telefonuna kaydedilir. Tek parca inen bir surumu olmayan
+            videolarda (cogu YouTube videosu boyledir) bu basit tarif hata verir; onlar icin
+            asagidaki gelismis tarifi kur, siteyi acsin.
+          </p>
+        </details>
 
-      <section class="card" id="gelismis">
-        <h2 class="section-title">Gelismis tarif: olmadiginda siteyi acsin</h2>
-        <p class="hint">
-          <code>redirect=1</code> olmadan istek atilirsa uc JSON doner. Kisayol bu JSON'a bakip
-          karar verebilir: dosya varsa kaydeder, yoksa adresi zaten dolu olan siteyi acar ve
-          birlestirmeyi tarayici yapar.
-        </p>
+        <details class="advanced" id="gelismis">
+          <summary>Gelismis tarif: olmadiginda siteyi acsin (kurulan kisayolun ayni)</summary>
+          <p class="hint">
+            <code>redirect=1</code> olmadan istek atilirsa uc JSON doner. Kisayol bu JSON'a bakip
+            karar verebilir: dosya varsa kaydeder, yoksa adresi zaten dolu olan siteyi acar ve
+            birlestirmeyi tarayici yapar. Yukaridaki dugmenin kurdugu kisayol tam olarak budur.
+          </p>
         <ol class="recipe">
           <li>
             <span class="action-name">URL Kodla</span> &rarr; <span class="action-name">Metin</span>:
@@ -236,7 +279,8 @@
             <code>message</code> anahtarini <span class="action-name">Uyari Goster</span> ile
             gosterebilirsin: neden olmadigi Turkce yazar.
           </li>
-        </ol>
+          </ol>
+        </details>
       </section>
 
       <section class="card">

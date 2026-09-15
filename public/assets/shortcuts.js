@@ -22,6 +22,41 @@ function fillEndpoints() {
   }
 }
 
+/**
+ * Kurulum dugmeleri: iPhone'da `shortcuts://import-shortcut` semasi Kisayollar
+ * uygulamasini acar ve "Kisayol Ekle" ekranini gosterir. Sema yalnizca iOS'ta
+ * anlamli oldugu icin diger cihazlarda dugme dosyayi indirmeye devam eder
+ * (HTML'deki href zaten /avd.shortcut'i gosteriyor).
+ */
+function wireInstallButtons() {
+  const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+  const buttons = [
+    { id: "installVideo", path: "/avd.shortcut", name: "Videoyu Indir" },
+    { id: "installAudio", path: "/avd.shortcut?type=audio", name: "Sesi Indir" },
+  ];
+
+  for (const { id, path, name } of buttons) {
+    const el = $(id);
+    if (!el) continue;
+    const fileUrl = `${base}${path}`;
+    el.href = isApple
+      ? `shortcuts://import-shortcut?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(name)}`
+      : fileUrl;
+    // Sema calismazsa (masaustu tarayici, eski iOS) dosyanin kendisi elde
+    // kalsin diye dogrudan adres de gosterilir.
+    el.dataset.fileUrl = fileUrl;
+  }
+
+  const note = $("installNote");
+  if (note && !isApple) {
+    note.insertAdjacentHTML(
+      "beforeend",
+      " <strong>Bu cihaz iPhone degil:</strong> dugme kisayol dosyasini indirir; dosyayi " +
+        "telefonuna gonderip orada acman gerekir.",
+    );
+  }
+}
+
 /** Kopyala dugmeleri: pano yoksa metni secili birakmakla yetinir. */
 function wireCopyButtons() {
   for (const btn of document.querySelectorAll("[data-copy]")) {
@@ -125,6 +160,7 @@ async function tryResolve(event) {
 }
 
 fillEndpoints();
+wireInstallButtons();
 wireCopyButtons();
 $("tryForm").addEventListener("submit", tryResolve);
 

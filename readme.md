@@ -150,9 +150,27 @@ YouTube sunucu tarafındaki çözümleyiciye bağlıdır.
 
 ## iPhone Kısayolu (Shortcuts)
 
-iPhone'da paylaşım menüsünden **tek dokunuşla** indirmek için `/api/shortcut` ucu ve
-adım adım tarifi anlatan bir sayfa var: **[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)**
-(sitedeki adresler kendi alan adına göre doldurulur, kopyala düğmeleriyle alınır).
+iPhone'da paylaşım menüsünden **tek dokunuşla** indirmek için hazır bir kısayol var:
+**[`/shortcuts`](https://anything-video-downloader.netlify.app/shortcuts)** sayfasındaki
+düğme `shortcuts://import-shortcut` ile Kısayollar uygulamasını açar ve "Kısayol Ekle"
+ekranını gösterir — eylemleri elle dizmek gerekmez. Sayfada elle kurulum tarifi de yedek
+olarak duruyor.
+
+Kısayol dosyasını `/avd.shortcut` ucu üretir (`?type=audio` ses sürümünü verir). Dosya
+sunucuda üretiliyor çünkü **sitenin kendi adresi** kısayolun içine gömülmek zorunda:
+projeyi kendi Netlify hesabına kuran birinin kısayolu kendi alan adına istek atsın diye.
+İçerik bir XML plist'tir; eylemler UUID ile birbirine bağlanır, `WFWorkflowTypes:
+["ActionExtension"]` ile paylaşım sayfasına yerleşir.
+
+Kurulan kısayolun akışı: *paylaşılan adres → URL kodla → `/api/shortcut` → `result` "ok" ise
+dosyayı indirip Fotoğraflar'a kaydet, değilse Türkçe açıklamayı bildir ve adresi dolu olarak
+siteyi aç.*
+
+> İmzasız kısayol dosyalarında iOS bazen *Ayarlar → Kısayollar → Güvenilmeyen Kısayollara İzin
+> Ver* ister (bu seçenek ancak en az bir kısayol çalıştırdıktan sonra görünür). Tamamen
+> sürtünmesiz kurulum isteyen, kısayolu bir kez telefona alıp iCloud bağlantısı olarak
+> paylaşabilir: iCloud bağlantıları Apple tarafından imzalandığı için bu uyarıyı hiç
+> göstermez.
 
 Uç, `/api/resolve` ile aynı çözümlemeyi yapar; farkı **seçim** aşamasındadır: Kısayollar
 uygulaması ffmpeg çalıştıramadığı için yalnızca **tek parçada inen** adaylar değerlendirilir
@@ -174,7 +192,9 @@ GET /api/shortcut?url=<sayfa>&redirect=1   →  302: dosyanın kendisi (Kısayol
 | `strict=1` | Hatalarda gerçek HTTP kodu döner. |
 | `X-Site-Cookie` başlığı | Gizli gönderiler ve YouTube bot kontrolü için kendi oturum çerezin. |
 
-Yanıt **varsayılan olarak her zaman 200** döner ve başarı bilgisi gövdedeki `ok` alanındadır:
+Yanıt **varsayılan olarak her zaman 200** döner; başarı bilgisi gövdedeki `ok` alanında, ayrıca
+Kısayol'un "Eğer" koşulunda karşılaştırdığı `result` alanında (`"ok"` / `"error"`) düz metin
+olarak bulunur:
 Kısayollar 2xx dışındaki yanıtlarda akışı okunmaz bir hatayla durdurur, böyleyse kullanıcıya
 Türkçe açıklama (`message`) gösterilebiliyor. İndirme adresi `/api/proxy`'ye `name=` ile gider;
 proxy de `Content-Disposition` yazdığı için dosya telefonda doğru adla kaydedilir.
@@ -409,8 +429,10 @@ public/                     Netlify'a yayımlanan statik site
 netlify/
   functions/resolve.mts     /api/resolve — çözümleyiciyi çağırır, JSON döner
   functions/shortcut.mts    /api/shortcut — iPhone Kısayolu için tek dosyalık kaynak seçer
+  functions/shortcut-file.mts  /avd.shortcut — kurulabilir kısayol dosyasını üretir
   functions/proxy.mts       CORS aktarıcı
   lib/resolver.mts          medya adaylarını çıkarır (platform çözümleyicileri dâhil)
+  lib/shortcut-file.mts     kısayol plist'ini kurar (eylemler, UUID bağları)
   lib/net.mts               SSRF koruması ve ortak başlıklar
 
 tools/avd-helper.py         yerel yardımcı (yt-dlp ile çözüm + bayt aktarımı)
