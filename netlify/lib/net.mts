@@ -159,6 +159,13 @@ export async function dispatcherFor(target: URL): Promise<unknown | undefined> {
   return cachedAgent.agent;
 }
 
+/**
+ * Adrese bagli cerezlerin tasindigi parca (#avd-cookie=...). Cozumleyici
+ * ekler, /api/proxy okuyup yalnizca o hedefe cerez olarak iletir; parca hedef
+ * sunucuya hicbir zaman gitmez.
+ */
+export const COOKIE_FRAGMENT = "avd-cookie=";
+
 /** Hedef siteye tarayici gibi gorunen istek basliklari uretir. */
 export function upstreamHeaders(target: URL, referer?: string | null): Record<string, string> {
   const ref = referer || `${target.protocol}//${target.host}/`;

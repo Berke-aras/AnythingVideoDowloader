@@ -12,6 +12,7 @@
 import type { Config, Context } from "@netlify/functions";
 import {
   assertSafeUrl,
+  COOKIE_FRAGMENT,
   corsHeaders,
   dispatcherFor,
   HttpError,
@@ -63,6 +64,19 @@ export default async (req: Request, _context: Context) => {
     });
   }
 
+  // Cozumleyici, adrese bagli cerezleri (TikTok tt_chain_token) adresin
+  // parcasina (#avd-cookie=...) koyar. Parca hedefe zaten gitmez; burada
+  // okunup yalnizca bu hedefe cerez olarak iletilir.
+  let fragmentCookie = "";
+  if (safe.hash.startsWith(`#${COOKIE_FRAGMENT}`)) {
+    try {
+      fragmentCookie = decodeURIComponent(safe.hash.slice(COOKIE_FRAGMENT.length + 1));
+    } catch {
+      /* bozuk parca yok sayilir */
+    }
+    safe.hash = "";
+  }
+
   const headers = upstreamHeaders(safe, params.get("ref"));
   const range = req.headers.get("range");
   if (range) headers.Range = range;
@@ -83,6 +97,7 @@ export default async (req: Request, _context: Context) => {
   const cookie = mergeCookies(
     siteCookieFor(safe.hostname),
     refHost ? siteCookieFor(refHost) : "",
+    fragmentCookie,
     req.headers.get("x-site-cookie"),
   );
   if (cookie) headers.Cookie = cookie;

@@ -11,6 +11,7 @@
 
 import {
   assertSafeUrl,
+  COOKIE_FRAGMENT,
   dispatcherFor,
   GENERIC_AGE_COOKIE,
   HttpError,
@@ -221,7 +222,10 @@ async function fetchText(url: URL, timeoutMs: number, options: FetchOptions = {}
       }
     }
   }
-  return { text, type, finalUrl: res.url || url.toString(), status: res.status };
+  // Bazi platformlar (TikTok) medya adresini sayfayla birlikte verilen bir
+  // cereze baglar; bu cerez olmadan CDN 403 dondurur.
+  const setCookie = res.headers.getSetCookie?.() ?? [];
+  return { text, type, finalUrl: res.url || url.toString(), status: res.status, setCookie };
 }
 
 /**
@@ -237,6 +241,7 @@ const PREVIEW_RE = new RegExp(
     "\\.t\\.(?:av1\\.)?mp4$", // xhamster onizleme adlandirmasi
     "_TPL_", // doldurulmamis sablon
     "sprite",
+    "/download/apk_", // TikTok'un "uygulamayi indir" tanitim klipleri
   ].join("|"),
   "i",
 );
@@ -1385,6 +1390,99 @@ async function spankbangExtract(
   return titleOf(text);
 }
 
+/* --------------------------------- TikTok --------------------------------- */
+
+/**
+ * TikTok videonun adresini sayfadaki __UNIVERSAL_DATA_FOR_REHYDRATION__
+ * nesnesine koyar; adreslerin dosya uzantisi olmadigi icin genel tarama
+ * bunlari gormez ve yerine sayfadaki "uygulamayi indir" tanitim kliplerini
+ * (birkac saniyelik TikTok animasyonu) bulurdu.
+ *
+ * CDN adresi, sayfayla birlikte gonderilen tt_chain_token cerezine bagli
+ * (adreste `tk=tt_chain_token` yazar); cerez olmadan 403 doner. Cerez adresin
+ * sonuna `#avd-cookie=` parcasi olarak eklenir: parca hedef sunucuya hic
+ * gitmez, /api/proxy onu okuyup istekle birlikte cerez olarak iletir.
+ */
+function tiktokItem(html: string): any | null {
+  const universal = html.match(
+    /<script[^>]+id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/,
+  );
+  if (universal) {
+    try {
+      const scope = JSON.parse(universal[1])?.__DEFAULT_SCOPE__;
+      const item = scope?.["webapp.video-detail"]?.itemInfo?.itemStruct;
+      if (item) return item;
+    } catch {
+      /* eski bicim denenir */
+    }
+  }
+  const sigi = html.match(/<script[^>]+id="SIGI_STATE"[^>]*>([\s\S]*?)<\/script>/);
+  if (sigi) {
+    try {
+      const items = JSON.parse(sigi[1])?.ItemModule ?? {};
+      return Object.values(items)[0] ?? null;
+    } catch {
+      /* bicim taninmadi */
+    }
+  }
+  return null;
+}
+
+async function tiktokExtract(pageUrl: URL, out: Map<string, Candidate>, cookie?: string) {
+  // vm.tiktok.com / vt.tiktok.com kisa baglantilari video sayfasina yonlenir.
+  const res = await fetchText(pageUrl, 8000, { cookie, asPage: true });
+  const item = tiktokItem(res.text);
+  if (!item) throw new Error("TikTok sayfasinda video bilgisi bulunamadi.");
+
+  const video = item.video ?? {};
+  const pageCookies = res.setCookie
+    .map((c) => c.split(";")[0].trim())
+    .filter((c) => /^(tt_chain_token|ttwid|tt_csrf_token)=/.test(c));
+  const jar = mergeCookies(pageCookies.join("; "), cookie);
+  const withCookie = (url: string) =>
+    jar ? `${url}#${COOKIE_FRAGMENT}${encodeURIComponent(jar)}` : url;
+
+  const add = (url: string | undefined, label: string) => {
+    if (!url || !/^https?:\/\//.test(url)) return;
+    addCandidate(out, { url: withCookie(url), key: url, kind: "video", ext: "mp4", label });
+  };
+
+  // Her kalite ayri, sesli bir dosya. Kodek etikete yazilir: H.265 (bytevc1)
+  // dosyalari bazi masaustu oynaticilarinda acilmiyor, H.264 her yerde acilir.
+  const isHevc = (g: any) => /h265|bytevc1/i.test(`${g?.CodecType ?? ""} ${g?.GearName ?? ""}`);
+  // Dikey videolarda "p" degeri kisa kenardir (1080x1920 -> 1080p).
+  const shortSide = (w?: number, h?: number) => Math.min(w || h || 0, h || w || 0);
+  const gears = [...(video.bitrateInfo ?? [])].sort(
+    (a: any, b: any) =>
+      shortSide(b?.PlayAddr?.Width, b?.PlayAddr?.Height) - shortSide(a?.PlayAddr?.Width, a?.PlayAddr?.Height) ||
+      (b?.Bitrate ?? 0) - (a?.Bitrate ?? 0),
+  );
+  const seen = new Set<string>();
+  for (const gear of gears) {
+    const addr = gear?.PlayAddr ?? {};
+    const p = shortSide(addr.Width, addr.Height);
+    const codec = isHevc(gear) ? "H.265" : "H.264";
+    if (seen.has(`${p}-${codec}`)) continue;
+    seen.add(`${p}-${codec}`);
+    const size = addr.DataSize ? ` · ${(addr.DataSize / 1_048_576).toFixed(1)} MB` : "";
+    add(addr.UrlList?.[0], `Video - ${p ? `${p}p` : "bilinmeyen kalite"} ${codec}${size}`);
+  }
+  const p = shortSide(video.width, video.height);
+  add(video.playAddr, `Video - ${p ? `${p}p` : "varsayilan"}`);
+  add(video.downloadAddr, "Video - filigranli indirme surumu");
+
+  if (out.size === 0) {
+    throw new Error(
+      item.imagePost
+        ? "Bu TikTok gonderisi video degil, fotograf slayti."
+        : "TikTok bu video icin oynatma adresi vermedi (gizli ya da kaldirilmis olabilir).",
+    );
+  }
+  const author = item.author?.uniqueId ? `@${item.author.uniqueId}` : "";
+  const desc = (item.desc || "").replace(/\s+/g, " ").slice(0, 80);
+  return [author, desc].filter(Boolean).join(" - ") || `TikTok ${item.id ?? ""}`.trim();
+}
+
 /* ----------------------- siteye ozel cozumleyiciler ----------------------- */
 
 /**
@@ -1414,6 +1512,12 @@ const SITE_HELPERS: Array<{
     match: /(^|\.)instagram\.com$/,
     authoritative: true,
     run: (pageUrl, out, cookie) => instagramExtract(pageUrl, out, cookie),
+  },
+  {
+    // TikTok: sayfadaki rehydration JSON'u + adrese bagli tt_chain_token cerezi.
+    match: /(^|\.)tiktok\.com$/,
+    authoritative: true,
+    run: (pageUrl, out, cookie) => tiktokExtract(pageUrl, out, cookie),
   },
   {
     // Vimeo: oynatici yapilandirmasi HLS ve dogrudan mp4 adreslerini verir.
@@ -1559,7 +1663,9 @@ function noteFor(host: string, found: number, helperError: string, hasCookie: bo
     return "Facebook cogu gonderi icin oturum ister; gelismis ayarlardan cerez ekleyebilirsin.";
   }
   if (/tiktok\.com$/.test(h)) {
-    return "TikTok adresleri kisa omurludur; bulunursa hemen indirin.";
+    return found > 0
+      ? "TikTok adresleri kisa omurludur; listeyi bulduktan sonra hemen indir."
+      : "TikTok videosu bulunamadi. Gizli ya da kaldirilmis videolar ve fotograf slaytlari icin sonuc donmez.";
   }
   if (found === 0) {
     return (
